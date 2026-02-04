@@ -10,11 +10,11 @@
 
 Store all production keys securely.
 
-https://docs.google.com/spreadsheets/d/1Z2OVvl8Pyn260Chs6jxEgaJO6PZpDFDaZDEwU2elG6A/edit?usp=sharing 
+https://docs.google.com/spreadsheets/d/1Z2OVvl8Pyn260Chs6jxEgaJO6PZpDFDaZDEwU2elG6A/edit?usp=sharing
 
 💻 **GitHub Repository**
 
-https://github.com/bhuvan-advantix/Helathcare.git 
+https://github.com/bhuvan-advantix/Helathcare.git
 
 ---
 
@@ -22,18 +22,15 @@ https://github.com/bhuvan-advantix/Helathcare.git
 
 ### ✅ Production URL
 
-<pre class="overflow-visible! px-0!" data-start="854" data-end="881"><div class="contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary"><div class="sticky top-[calc(var(--sticky-padding-top)+9*var(--spacing))]"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!"><span><span>https:</span><span>//niraiva.com</span><span>
-</span></span></code></div></div></pre>
+helathcare-nrivaa.vercel.app
 
 ### ✅ Staging / Testing
 
-<pre class="overflow-visible! px-0!" data-start="907" data-end="949"><div class="contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary"><div class="sticky top-[calc(var(--sticky-padding-top)+9*var(--spacing))]"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!"><span><span>https:</span><span>//staging-niraiva.vercel.app</span><span>
-</span></span></code></div></div></pre>
+helathcare-git-test-bhuvan-advantixs-projects.vercel.app
 
 ### ✅ Development
 
-<pre class="overflow-visible! px-0!" data-start="969" data-end="998"><div class="contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary"><div class="sticky top-[calc(var(--sticky-padding-top)+9*var(--spacing))]"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!"><span><span>http:</span><span>//localhost:3000</span><span>
-</span></span></code></div></div></pre>
+helathcare-git-dev-bhuvan-advantixs-projects.vercel.app
 
 ⚠️ Never test experimental features in production.
 
