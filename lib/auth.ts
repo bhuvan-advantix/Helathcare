@@ -33,7 +33,6 @@ export const authOptions: NextAuthOptions = {
         signIn: "/login",
     },
     secret: process.env.NEXTAUTH_SECRET,
-    useSecureCookies: false, // Important for localhost
     callbacks: {
         async jwt({ token, user, trigger, session, account }) {
             if (user) {
