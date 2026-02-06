@@ -12,7 +12,10 @@ function LoginContent() {
     const { data: session, status } = useSession();
     const selectedRole = searchParams.get('role');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const validateEmail = (value: string) => {
         if (!value) {
@@ -38,6 +41,41 @@ function LoginContent() {
 
     const clearRole = () => {
         router.push('/login');
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoginError('');
+
+        if (!validateEmail(email)) {
+            return;
+        }
+
+        if (!password) {
+            setLoginError('Please enter your password');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const result = await signIn('credentials', {
+                email,
+                password,
+                redirect: false,
+            });
+
+            if (result?.error) {
+                setLoginError(result.error);
+            } else if (result?.ok) {
+                // Successful login - redirect will happen via useEffect
+                router.push('/onboarding');
+            }
+        } catch (error) {
+            setLoginError('An unexpected error occurred. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Redirect if already logged in
@@ -150,10 +188,14 @@ function LoginContent() {
                     ) : (
                         <div className="animate-fade-in-up">
                             {/* Login Form Phase */}
-                            <form className="space-y-6" action="#" method="POST" onSubmit={(e) => {
-                                e.preventDefault();
-                                validateEmail(email);
-                            }}>
+                            <form className="space-y-6" onSubmit={handleLogin}>
+
+                                {/* Error Message */}
+                                {loginError && (
+                                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                                        <p className="font-medium">{loginError}</p>
+                                    </div>
+                                )}
 
                                 {/* Google Login Button */}
                                 <button
@@ -217,6 +259,8 @@ function LoginContent() {
                                             id="password"
                                             name="password"
                                             type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
                                             autoComplete="current-password"
                                             required
                                             placeholder="••••••••"
@@ -248,9 +292,13 @@ function LoginContent() {
                                 <div className="flex flex-col gap-4">
                                     <button
                                         type="submit"
-                                        className="flex w-full justify-center rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-primary hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5"
+                                        disabled={isLoading}
+                                        className="flex w-full justify-center items-center gap-2 rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-primary hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:translate-y-0"
                                     >
-                                        Sign in to Account
+                                        {isLoading && (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        )}
+                                        {isLoading ? 'Signing in...' : 'Sign in to Account'}
                                     </button>
                                     <button
                                         type="button"

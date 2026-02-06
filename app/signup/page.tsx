@@ -4,11 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 export default function SignupPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [signupError, setSignupError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const [role, setRole] = useState('patient');
 
     const validateEmail = (value: string) => {
@@ -27,6 +31,55 @@ export default function SignupPage() {
         }
         setEmailError('');
         return true;
+    };
+
+    const handleSignup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSignupError('');
+
+        if (!validateEmail(email)) {
+            return;
+        }
+
+        if (!password || password.length < 6) {
+            setSignupError('Password must be at least 6 characters long');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, role }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setSignupError(data.error || 'Failed to create account');
+                return;
+            }
+
+            // Auto-login after successful signup
+            const result = await signIn('credentials', {
+                email,
+                password,
+                redirect: false,
+            });
+
+            if (result?.ok) {
+                router.push('/onboarding');
+            } else {
+                // Account created but login failed - redirect to login
+                router.push('/login');
+            }
+        } catch (error) {
+            setSignupError('An unexpected error occurred. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -57,14 +110,19 @@ export default function SignupPage() {
                 <div className="bg-white py-8 px-6 shadow-2xl shadow-slate-200/60 rounded-[2rem] sm:px-12 border border-slate-100">
 
                     <div className="animate-fade-in-up">
-                        <form className="space-y-6" action="#" method="POST" onSubmit={(e) => {
-                            e.preventDefault();
-                            validateEmail(email);
-                        }}>
+                        <form className="space-y-6" onSubmit={handleSignup}>
+
+                            {/* Error Message */}
+                            {signupError && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                                    <p className="font-medium">{signupError}</p>
+                                </div>
+                            )}
 
                             {/* Google Signup Button */}
                             <button
                                 type="button"
+                                onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
                                 className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-primary hover:text-white hover:border-primary hover:shadow-md transition-all duration-300 group relative overflow-hidden"
                             >
                                 <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -88,7 +146,7 @@ export default function SignupPage() {
                                 <label htmlFor="email" className="block text-sm font-medium leading-6 text-slate-900">
                                     Email address
                                 </label>
-                                <div className="mt-2">
+                                <div className="mt-2" suppressHydrationWarning>
                                     <input
                                         id="email"
                                         name="email"
@@ -120,16 +178,19 @@ export default function SignupPage() {
                                 <label htmlFor="password" className="block text-sm font-medium leading-6 text-slate-900">
                                     Password
                                 </label>
-                                <div className="mt-2">
+                                <div className="mt-2" suppressHydrationWarning>
                                     <input
                                         id="password"
                                         name="password"
                                         type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
                                         autoComplete="new-password"
                                         required
                                         placeholder="••••••••"
                                         className="block w-full rounded-xl border-0 py-3 px-4 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6 transition-all"
                                     />
+                                    <p className="mt-1 text-xs text-slate-500">Must be at least 6 characters</p>
                                 </div>
                             </div>
 
@@ -199,9 +260,13 @@ export default function SignupPage() {
                             <div className="flex flex-col gap-4">
                                 <button
                                     type="submit"
-                                    className="flex w-full justify-center rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-primary hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5"
+                                    disabled={isLoading}
+                                    className="flex w-full justify-center items-center gap-2 rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-primary hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:translate-y-0"
                                 >
-                                    Create Account
+                                    {isLoading && (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    )}
+                                    {isLoading ? 'Creating Account...' : 'Create Account'}
                                 </button>
                             </div>
                         </form>

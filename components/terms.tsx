@@ -110,8 +110,7 @@ export default function Terms() {
                                 transition={{ duration: 0.6 }}
                             >
                                 <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight text-slate-900 leading-tight">
-                                    Terms & <br />
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-teal-400">Conditions</span>
+                                    Terms & <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-teal-400">Conditions</span>
                                 </h1>
                                 <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-lg">
                                     Please read these terms carefully before using our services. By accessing Niraiva Health, you agree to be bound by these terms to ensure a safe experience.

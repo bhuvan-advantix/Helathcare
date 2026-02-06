@@ -8,6 +8,7 @@ export const users = sqliteTable('users', {
     email: text('email').notNull().unique(),
     emailVerified: integer('emailVerified', { mode: 'timestamp_ms' }),
     image: text('image'),
+    password: text('password'), // For email/password authentication
     role: text('role').notNull().default('pending'), // 'patient' | 'doctor' | 'admin' | 'pending'
     isOnboarded: integer('is_onboarded', { mode: 'boolean' }).default(false),
     customId: text('custom_id').unique(), // #Nrivaa001
