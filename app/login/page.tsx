@@ -1,23 +1,78 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, useSession } from "next-auth/react";
 
-export default function LoginPage() {
-    const [selectedRole, setSelectedRole] = useState<null | 'patient' | 'doctor'>(null);
+function LoginContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { data: session, status } = useSession();
+    const selectedRole = searchParams.get('role');
+    const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState('');
+
+    const validateEmail = (value: string) => {
+        if (!value) {
+            setEmailError('');
+            return;
+        }
+        if (!value.includes('@')) {
+            setEmailError('Please include an "@" in the email address.');
+            return false;
+        }
+        // Basic pattern check for completeness
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            setEmailError('Please enter a valid email address.');
+            return false;
+        }
+        setEmailError('');
+        return true;
+    };
+
+    const handleRoleSelect = (role: string) => {
+        router.push(`/login?role=${role}`);
+    };
+
+    const clearRole = () => {
+        router.push('/login');
+    };
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user) {
+            // If user is already logged in, redirect them
+            if (session.user.isOnboarded) {
+                router.push('/dashboard');
+            } else {
+                router.push('/onboarding');
+            }
+        }
+    }, [status, session, router]);
+
+    // Show loading while checking authentication
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
-
+        <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
             {/* Ambient Background Lights */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 rounded-full blur-[100px] opacity-30"></div>
                 <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-teal-400/20 rounded-full blur-[100px] opacity-30"></div>
             </div>
 
-            <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center mb-8">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center mb-6">
                 <Link href="/" className="inline-flex items-center gap-2 group mb-6 transition-transform hover:scale-105">
                     <div className="w-10 h-10 bg-gradient-to-br from-primary to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
                         <span className="text-white font-bold text-xl">N</span>
@@ -37,47 +92,57 @@ export default function LoginPage() {
             </div>
 
             <div className="sm:mx-auto sm:w-full sm:max-w-[480px] relative z-10">
-                <div className="bg-white py-12 px-6 shadow-2xl shadow-slate-200/60 rounded-[2rem] sm:px-12 border border-slate-100">
+                <div className="bg-white py-8 px-6 shadow-2xl shadow-slate-200/60 rounded-[2rem] sm:px-12 border border-slate-100">
 
                     {!selectedRole ? (
                         <div className="space-y-4">
                             {/* Role Selection Phase */}
                             <button
-                                onClick={() => setSelectedRole('patient')}
-                                className="w-full group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-primary/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 text-left flex items-center gap-5 hover:-translate-y-1"
+                                onClick={() => handleRoleSelect('patient')}
+                                className="w-full group relative p-6 bg-white rounded-2xl border-2 border-slate-100 hover:border-primary/60 shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 text-left flex items-center gap-5 hover:-translate-y-1"
                             >
-                                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                                    <svg className="w-7 h-7 text-primary group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
+                                <div className="w-16 h-16 bg-blue-50/80 rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-inner relative overflow-hidden">
+                                    <Image
+                                        src="/healthcare.png"
+                                        alt="Patient"
+                                        width={40}
+                                        height={40}
+                                        className="object-contain"
+                                        unoptimized
+                                    />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 text-lg group-hover:text-primary transition-colors">I am a Patient</h3>
-                                    <p className="text-xs text-slate-500 mt-1">Access records, appointments & more</p>
+                                    <h3 className="font-bold text-slate-800 text-xl group-hover:text-primary transition-colors">I am a Patient</h3>
+                                    <p className="text-sm text-slate-500 mt-1 font-medium">Access records, appointments & more</p>
                                 </div>
-                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0 text-primary">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                <div className="ml-auto opacity-100 translate-x-0 sm:opacity-0 sm:translate-x-[-10px] sm:group-hover:opacity-100 sm:group-hover:translate-x-0 transition-all transform text-primary">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </button>
 
                             <button
-                                onClick={() => setSelectedRole('doctor')}
-                                className="w-full group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-teal-400/50 shadow-sm hover:shadow-lg hover:shadow-teal-400/5 transition-all duration-300 text-left flex items-center gap-5 hover:-translate-y-1"
+                                onClick={() => handleRoleSelect('doctor')}
+                                className="w-full group relative p-6 bg-white rounded-2xl border-2 border-slate-100 hover:border-teal-500/60 shadow-sm hover:shadow-xl hover:shadow-teal-500/10 transition-all duration-300 text-left flex items-center gap-5 hover:-translate-y-1"
                             >
-                                <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center group-hover:bg-teal-500 group-hover:text-white transition-all duration-300">
-                                    <svg className="w-7 h-7 text-teal-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                    </svg>
+                                <div className="w-16 h-16 bg-teal-50/80 rounded-2xl flex items-center justify-center group-hover:bg-teal-500 group-hover:text-white transition-all duration-300 shadow-inner relative overflow-hidden">
+                                    <Image
+                                        src="/doctor.png"
+                                        alt="Doctor"
+                                        width={40}
+                                        height={40}
+                                        className="object-contain"
+                                        unoptimized
+                                    />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 text-lg group-hover:text-teal-600 transition-colors">I am a Doctor</h3>
-                                    <p className="text-xs text-slate-500 mt-1">Manage practice & patients</p>
+                                    <h3 className="font-bold text-slate-800 text-xl group-hover:text-teal-600 transition-colors">I am a Doctor</h3>
+                                    <p className="text-sm text-slate-500 mt-1 font-medium">Manage practice & patients</p>
                                 </div>
-                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0 text-teal-500">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                <div className="ml-auto opacity-100 translate-x-0 sm:opacity-0 sm:translate-x-[-10px] sm:group-hover:opacity-100 sm:group-hover:translate-x-0 transition-all transform text-teal-500">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </button>
@@ -85,12 +150,16 @@ export default function LoginPage() {
                     ) : (
                         <div className="animate-fade-in-up">
                             {/* Login Form Phase */}
-                            <form className="space-y-6" action="#" method="POST" onSubmit={(e) => e.preventDefault()}>
+                            <form className="space-y-6" action="#" method="POST" onSubmit={(e) => {
+                                e.preventDefault();
+                                validateEmail(email);
+                            }}>
 
                                 {/* Google Login Button */}
                                 <button
                                     type="button"
-                                    className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 group relative overflow-hidden"
+                                    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                                    className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-primary hover:text-white hover:border-primary hover:shadow-md transition-all duration-300 group relative overflow-hidden"
                                 >
                                     <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                         <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -117,11 +186,25 @@ export default function LoginPage() {
                                             id="email"
                                             name="email"
                                             type="email"
+                                            value={email}
+                                            onChange={(e) => {
+                                                setEmail(e.target.value);
+                                                if (emailError) validateEmail(e.target.value);
+                                            }}
+                                            onBlur={(e) => validateEmail(e.target.value)}
                                             autoComplete="email"
                                             required
                                             placeholder="name@company.com"
-                                            className="block w-full rounded-xl border-0 py-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6 transition-all"
+                                            className={`block w-full rounded-xl border-0 py-3 px-4 shadow-sm ring-1 ring-inset placeholder:text-slate-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 transition-all ${emailError
+                                                ? 'text-red-900 ring-red-300 focus:ring-red-500'
+                                                : 'text-slate-900 ring-slate-200 focus:ring-primary'
+                                                }`}
                                         />
+                                        {emailError && (
+                                            <p className="mt-2 text-sm text-red-600 animate-fade-in">
+                                                {emailError}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -137,7 +220,7 @@ export default function LoginPage() {
                                             autoComplete="current-password"
                                             required
                                             placeholder="••••••••"
-                                            className="block w-full rounded-xl border-0 py-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6 transition-all"
+                                            className="block w-full rounded-xl border-0 py-3 px-4 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6 transition-all"
                                         />
                                     </div>
                                 </div>
@@ -156,35 +239,38 @@ export default function LoginPage() {
                                     </div>
 
                                     <div className="text-sm">
-                                        <a href="#" className="font-semibold text-primary hover:text-primary/80">
+                                        <a href="#" className="font-semibold text-primary hover:text-primary/80 hover:underline transition-all">
                                             Forgot password?
                                         </a>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-4">
                                     <button
                                         type="submit"
-                                        className="flex w-full justify-center rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 hover:shadow-slate-900/30 transition-all hover:-translate-y-0.5"
+                                        className="flex w-full justify-center rounded-xl bg-slate-900 px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-slate-900/20 hover:bg-primary hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5"
                                     >
                                         Sign in to Account
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedRole(null)}
-                                        className="text-xs text-slate-500 hover:text-primary underline transition-colors text-center"
+                                        onClick={clearRole}
+                                        className="w-full flex items-center justify-center gap-2 mt-2 py-3 px-4 rounded-xl text-slate-600 font-bold border border-transparent hover:text-slate-900 transition-all group"
                                     >
-                                        ← Select a different role
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                        </svg>
+                                        Select a different role
                                     </button>
                                 </div>
                             </form>
                         </div>
                     )}
 
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                        <div className="text-center text-sm">
-                            <span className="text-slate-500">Don't have an account? </span>
-                            <Link href="/signup" className="text-primary font-bold hover:text-primary/80 transition-colors">
+                    <div className="mt-6 pt-4 border-t border-slate-100">
+                        <div className="text-center text-sm md:text-base flex flex-col sm:flex-row justify-center items-center gap-1">
+                            <span className="text-slate-500 font-bold">Don't have an account?</span>
+                            <Link href="/signup" className="text-primary font-extrabold hover:text-primary/80 hover:underline transition-colors">
                                 Sign up for free
                             </Link>
                         </div>
@@ -192,5 +278,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }

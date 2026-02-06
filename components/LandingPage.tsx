@@ -112,9 +112,9 @@ function Hero() {
 
                 <div className="relative mx-auto max-w-6xl rounded-2xl shadow-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm p-3 animate-fade-in-up delay-200">
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-3xl blur-md opacity-40 -z-10"></div>
-                    <div className="relative rounded-xl overflow-hidden bg-slate-100 aspect-[16/9] shadow-inner">
+                    <div className="relative rounded-xl overflow-hidden bg-slate-100 aspect-[3/2] shadow-inner">
                         <Image
-                            src="/hero-dashboard.png"
+                            src="/Landing-page.jpg"
                             alt="Niraiva Health Dashboard Interface"
                             fill
                             className="object-cover"
@@ -254,7 +254,7 @@ function HowItWorks() {
         },
         {
             title: "Connect & Consult",
-            description: "Instantly share records with doctors. Book appointments and consult via video or in-person with real-time data access.",
+            description: "Instantly share records with doctors. Seamlessly book in-person appointments and get expert advice with real-time health data access.",
             icon: (
                 <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -437,8 +437,8 @@ function Footer() {
                     {/* Right: Links */}
                     <div className="flex flex-col md:flex-row items-center gap-6">
                         <nav className="flex items-center gap-6 text-sm font-medium text-slate-500">
-                            <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
-                            <Link href="#" className="hover:text-primary transition-colors">Terms</Link>
+                            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+                            <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
                         </nav>
                     </div>
                 </div>
