@@ -132,7 +132,7 @@ export default function Privacy() {
                                 className="relative h-[300px] md:h-[450px] w-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-100"
                             >
                                 <Image
-                                    src="/healthcare.png"
+                                    src="/privacy.png"
                                     alt="Privacy and Healthcare Protection"
                                     fill
                                     className="object-cover"

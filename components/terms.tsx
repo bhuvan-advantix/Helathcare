@@ -131,7 +131,7 @@ export default function Terms() {
                                 className="relative h-[300px] md:h-[450px] w-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-100"
                             >
                                 <Image
-                                    src="/Landing-Page.jpg"
+                                    src="/terms.jpg"
                                     alt="Terms and Conditions Protection"
                                     fill
                                     className="object-cover"
