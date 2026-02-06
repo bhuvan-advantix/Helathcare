@@ -6,7 +6,9 @@ import AuthProvider from "@/components/AuthProvider";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
   display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -22,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} font-sans antialiased text-slate-800 bg-[#F7F9FA]`}
+        className={`${inter.className} ${inter.variable} font-sans antialiased text-slate-800 bg-[#F7F9FA]`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>
