@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
                 experienceYears: parseInt(formData.experience) || 0,
                 phoneNumber: formData.phone,
                 bio: formData.bio || formData.address,
-                consultationFee: parseInt(formData.consultationFee) || 0,
             });
         }
 
