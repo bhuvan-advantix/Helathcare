@@ -114,7 +114,7 @@ function Hero() {
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-3xl blur-md opacity-40 -z-10"></div>
                     <div className="relative rounded-xl overflow-hidden bg-slate-100 aspect-[3/2] shadow-inner">
                         <Image
-                            src="/Landing-page.jpg"
+                            src="/Landing-Page.jpg"
                             alt="Niraiva Health Dashboard Interface"
                             fill
                             className="object-cover"
