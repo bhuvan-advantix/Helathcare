@@ -1611,22 +1611,22 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.8, y: 50 }}
                         transition={{ duration: 0.5, type: "spring", stiffness: 200, damping: 20 }}
-                        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none"
+                        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none px-4 w-full max-w-sm"
                     >
-                        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600 rounded-3xl shadow-2xl p-8 sm:p-12 text-center max-w-md border-4 border-white">
+                        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 text-center border-2 sm:border-4 border-white">
                             <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 bg-white rounded-full flex items-center justify-center"
+                                className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-white rounded-full flex items-center justify-center"
                             >
-                                <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-teal-600" />
+                                <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-teal-600" />
                             </motion.div>
                             <motion.h2
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.4 }}
-                                className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-tight"
+                                className="text-2xl sm:text-3xl font-black text-white mb-2 sm:mb-3 tracking-tight"
                             >
                                 Welcome Aboard!
                             </motion.h2>
@@ -1634,7 +1634,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.6 }}
-                                className="text-lg sm:text-xl font-bold text-white/90 mb-2"
+                                className="text-base sm:text-lg font-bold text-white/90 mb-1 sm:mb-2"
                             >
                                 Track Health - You're the Best!
                             </motion.p>
@@ -1642,7 +1642,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.8 }}
-                                className="text-white/80 font-medium text-sm sm:text-base"
+                                className="text-white/80 font-medium text-sm"
                             >
                                 Your health journey starts now 🎉
                             </motion.p>
