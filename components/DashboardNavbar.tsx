@@ -224,6 +224,10 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
                                     Profile & Settings
                                 </Link>
                                 <button
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false);
+                                        router.push('/help-support');
+                                    }}
                                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50"
                                 >
                                     <HelpCircle className="w-5 h-5" />
