@@ -114,3 +114,57 @@ export const doctors = sqliteTable('doctors', {
 
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+export const medications = sqliteTable('medications', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    dosage: text('dosage'), // e.g. "500mg"
+    purpose: text('purpose'), // Reason for taking
+    startDate: text('start_date'), // YYYY-MM-DD
+    frequency: text('frequency'), // e.g., "Daily", "Twice a day"
+    status: text('status').default('Active'), // Active, Discontinued
+    addedBy: text('added_by').default('Self'), // "Self" or "Dr. Name"
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Archive Table for Deleted Accounts
+export const deletedAccounts = sqliteTable('deleted_accounts', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    originalUserId: text('original_user_id'), // Keep reference but no foreign key constraint as user will be deleted
+    name: text('name'),
+    email: text('email'),
+    role: text('role'),
+    customId: text('custom_id'),
+    reason: text('reason'), // Optional reason for deletion
+    deletedAt: integer('deleted_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+
+    // Backup of key profile data (JSON stringified for simplicity or specific columns)
+    profileSnapshot: text('profile_snapshot', { mode: 'json' }), // Stores the entire patient/doctor record as JSON
+});
+
+// Support Tickets Table
+export const supportTickets = sqliteTable('support_tickets', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    ticketNumber: text('ticket_number').notNull().unique(), // e.g., "TKT12345"
+
+    // User Information
+    userName: text('user_name').notNull(),
+    userEmail: text('user_email').notNull(),
+
+    // Issue Details
+    selectedPage: text('selected_page').notNull(), // Which page has the issue
+    message: text('message').notNull(), // User's detailed message
+
+    // Status and Tracking
+    status: text('status').notNull().default('open'), // 'open' | 'in_progress' | 'resolved' | 'closed'
+    priority: text('priority').default('medium'), // 'low' | 'medium' | 'high' | 'urgent'
+
+    // Timestamps
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+
+    // Optional: Link to user if they're logged in
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+});

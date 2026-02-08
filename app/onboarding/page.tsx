@@ -101,6 +101,13 @@ function OnboardingContent() {
         setImageError(false);
     }, [selectedAvatar]);
 
+    // Redirect if already onboarded to prevent re-entering onboarding flow
+    useEffect(() => {
+        if (status === "authenticated" && (session?.user as any)?.isOnboarded) {
+            router.replace("/dashboard");
+        }
+    }, [status, session, router]);
+
 
 
     // Common State
@@ -284,25 +291,27 @@ function OnboardingContent() {
             if (!result.success) {
                 // Gracefully handle already onboarded users by redirecting
                 if (result.error === "Account already exists and is setup. Please login.") {
-                    setShowExistsModal(true);
-                    setIsSubmitting(false);
+                    // Already onboarded, redirect directly to dashboard
+                    window.location.href = "/dashboard?welcome=true";
                     return;
                 }
                 throw new Error(result.error || "Failed to complete onboarding");
             }
 
-            // Update session
-            await update();
+            // Update session (force refresh)
+            await update({});
 
             // Clear persistence
             if (typeof window !== 'undefined') {
                 localStorage.removeItem("onboarding_role");
                 localStorage.removeItem("onboarding_step");
                 localStorage.removeItem("onboarding_data");
-            }
+                // Clear welcome flag to ensure animation shows for this new account
+                localStorage.removeItem("hasSeenWelcome_v2");
 
-            // Redirect to dashboard
-            router.push("/dashboard");
+                // Force hard navigation to ensure session cookie is updated and middleware passes
+                window.location.href = "/dashboard?welcome=true";
+            }
         } catch (error) {
             console.error("Onboarding error:", error);
             alert(error instanceof Error ? error.message : "Failed to complete registration. Please try again.");
@@ -310,6 +319,17 @@ function OnboardingContent() {
             setIsSubmitting(false);
         }
     };
+
+    if (status === "loading" || (status === "authenticated" && (session?.user as any)?.isOnboarded)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-slate-600 font-medium">Wait a moment...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!role) {
         return (
@@ -1371,14 +1391,7 @@ function OnboardingContent() {
 
 export default function OnboardingPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">Loading...</p>
-                </div>
-            </div>
-        }>
+        <Suspense>
             <OnboardingContent />
         </Suspense>
     );

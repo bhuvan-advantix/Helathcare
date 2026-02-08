@@ -57,7 +57,7 @@ function Navbar() {
                     <div className="flex items-center">
                         <Link
                             href="/login"
-                            className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-primary hover:text-slate-900 transition-all shadow-sm hover:shadow-md"
+                            className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-teal-600 hover:text-white transition-all shadow-sm hover:shadow-md"
                         >
                             Login
                         </Link>
@@ -84,9 +84,9 @@ function Hero() {
                     The New Standard in Healthcare Management
                 </div>
 
-                <h1 className="text-4xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6 leading-[1.1]">
+                <h1 className="text-4xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-6 leading-[1.1]">
                     Modern Healthcare <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary animate-gradient bg-300%">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-teal-400 to-teal-600 animate-gradient bg-300%">
                         Connected & Intelligent
                     </span>
                 </h1>

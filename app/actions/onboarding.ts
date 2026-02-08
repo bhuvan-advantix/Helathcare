@@ -3,7 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { users, patients, doctors } from "@/db/schema";
+import { users, patients, doctors, deletedAccounts } from "@/db/schema";
 import { eq, desc, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -49,26 +49,37 @@ export async function completeOnboarding(role: "patient" | "doctor", formData: a
         while (!isUnique && attempts < MAX_ATTEMPTS) {
             attempts++;
 
-            // Fetch the user with the highest customId to increment
-            // We search for IDs starting with the specific prefix to find the last one
-            const [lastUser] = await db.select({ customId: users.customId })
+            // Fetch ALL users with IDs matching this prefix from BOTH active and deleted accounts
+            // This prevents ID reuse when accounts are deleted
+            const activeUsers = await db.select({ customId: users.customId })
                 .from(users)
-                .where(like(users.customId, `${idPrefix}%`))
-                .orderBy(desc(users.customId))
-                .limit(1);
+                .where(like(users.customId, `${idPrefix}%`));
 
-            let nextNum = 1;
-            if (lastUser && lastUser.customId) {
-                const currentNumStr = lastUser.customId.replace(idPrefix, "");
-                const currentNum = parseInt(currentNumStr, 10);
-                if (!isNaN(currentNum)) {
-                    nextNum = currentNum + 1;
+            const deletedUsers = await db.select({ customId: deletedAccounts.customId })
+                .from(deletedAccounts)
+                .where(like(deletedAccounts.customId, `${idPrefix}%`));
+
+            // Combine both lists
+            const allIdsEverUsed = [...activeUsers, ...deletedUsers];
+
+            let maxNum = 0;
+
+            // Extract numeric part from each ID and find the maximum
+            for (const record of allIdsEverUsed) {
+                if (record.customId) {
+                    const numStr = record.customId.replace(idPrefix, "");
+                    const num = parseInt(numStr, 10);
+                    if (!isNaN(num) && num > maxNum) {
+                        maxNum = num;
+                    }
                 }
             }
 
+            // Next ID is max + 1
+            const nextNum = maxNum + 1;
             newCustomId = `${idPrefix}${nextNum.toString().padStart(3, "0")}`;
 
-            // Check if this ID really exists (double check to avoid race condition failure if possible
+            // Double-check uniqueness in active users only (deleted IDs can be duplicated in archive)
             const [conflict] = await db.select().from(users).where(eq(users.customId, newCustomId)).limit(1);
             if (!conflict) {
                 isUnique = true;
