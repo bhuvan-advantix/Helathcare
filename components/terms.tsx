@@ -5,8 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ChevronRight, Shield, Lock, FileText, AlertCircle, HelpCircle } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import DashboardNavbar from '@/components/DashboardNavbar';
 
 export default function Terms() {
+    const { data: session, status } = useSession();
     const [activeSection, setActiveSection] = useState('introduction');
 
     const sections = [
@@ -72,31 +75,35 @@ export default function Terms() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-            {/* Navbar */}
-            <nav className={`fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2 group cursor-pointer">
-                        <div className="w-9 h-9 bg-teal-500/10 rounded-xl flex items-center justify-center group-hover:bg-teal-500 transition-colors duration-300">
-                            <span className="text-teal-600 font-bold text-xl group-hover:text-white transition-colors">N</span>
-                        </div>
-                        <span className="font-bold text-xl tracking-tight text-slate-800">
-                            Niraiva<span className="text-teal-600">Health</span>
-                        </span>
-                    </Link>
+            {/* Conditional Navbar */}
+            {session ? (
+                <DashboardNavbar user={session.user} />
+            ) : (
+                <nav className={`fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                        <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+                            <div className="w-9 h-9 bg-teal-500/10 rounded-xl flex items-center justify-center group-hover:bg-teal-500 transition-colors duration-300">
+                                <span className="text-teal-600 font-bold text-xl group-hover:text-white transition-colors">N</span>
+                            </div>
+                            <span className="font-bold text-xl tracking-tight text-slate-800">
+                                Niraiva<span className="text-teal-600">Health</span>
+                            </span>
+                        </Link>
 
-                    <div className="flex items-center gap-6">
-                        <Link href="/" className="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors hidden md:block">
-                            Back to Home
-                        </Link>
-                        <Link
-                            href="/login"
-                            className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-teal-600 hover:text-white transition-all shadow-sm hover:shadow-md"
-                        >
-                            Login
-                        </Link>
+                        <div className="flex items-center gap-6">
+                            <Link href="/" className="text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors hidden md:block">
+                                Back to Home
+                            </Link>
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-teal-600 hover:text-white transition-all shadow-sm hover:shadow-md"
+                            >
+                                Login
+                            </Link>
+                        </div>
                     </div>
-                </div>
-            </nav>
+                </nav>
+            )}
 
             {/* Hero Section */}
             <header className="relative pt-32 pb-16 bg-white overflow-hidden">

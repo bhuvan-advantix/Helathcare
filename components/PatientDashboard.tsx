@@ -1650,6 +1650,9 @@ export default function PatientDashboard({ data }: DashboardProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Footer */}
+            <Footer />
         </div>
     );
 }
