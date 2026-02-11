@@ -128,26 +128,35 @@ function HealthCard({ user, patient }: HealthCardProps) {
 
     // Logic to combine and deduplicate medications for the card
     const getCombinedMedications = () => {
-        const dbMedsNames = patient?.medications?.map((m: any) => m.name) || [];
         const uniqueNames = new Set<string>();
+        const stoppedNames = new Set<string>();
 
-        // 1. Add DB meds (Active ones only preferably? User said "Current Medications")
-        // Assuming all in 'medications' are current unless status is Stopped?
-        // Let's filter by Active if possible, or just take names.
-        // Dashboard shows all start/stop. "Current Medications" usually implies Active.
-        // I'll take all for now to be safe, or check status if available.
+        // 1. Identify Stopped meds first to block them
+        patient?.medications?.forEach((m: any) => {
+            if (m.status === 'Stopped') {
+                stoppedNames.add(m.name.toLowerCase());
+            }
+        });
+
+        // 2. Add Active DB meds
         patient?.medications?.forEach((m: any) => {
             if (m.status !== 'Stopped') {
                 uniqueNames.add(m.name);
             }
         });
 
-        // 2. Add Legacy meds if not already present
+        // 3. Add Legacy meds if not already present AND not stopped
         const legacyMedsString = patient?.currentMedications || "";
         const legacyList = legacyMedsString.split(',').map(s => s.replace(/[^a-zA-Z0-9 ]/g, '').trim()).filter(Boolean);
 
         legacyList.forEach(name => {
-            const exists = Array.from(uniqueNames).some(u => u.toLowerCase() === name.toLowerCase());
+            const lowerName = name.toLowerCase();
+            // Don't add if it's known as stopped
+            if (stoppedNames.has(lowerName)) return;
+
+            // Don't add if already in uniqueNames (case-insensitive check best, but uniqueNames check is exact)
+            // Let's check exact for now to match strict logic, or case-insensitive for better dedup
+            const exists = Array.from(uniqueNames).some(u => u.toLowerCase() === lowerName);
             if (!exists) uniqueNames.add(name);
         });
 
@@ -277,13 +286,13 @@ function HealthCard({ user, patient }: HealthCardProps) {
                                 <div>
                                     <p className="text-[6px] md:text-[8px] font-extrabold text-rose-400 uppercase tracking-widest leading-none mb-0.5">Emergency SOS</p>
                                     <p className="text-sm md:text-lg font-black text-rose-700 tracking-tight leading-none">
-                                        {patient?.emergencyContactPhone || "N/A"}
+                                        {(patient?.emergencyContactPhone || "N/A").replace('+91', '+91-')}
                                     </p>
                                 </div>
                                 {patient?.emergencyContactName && (
                                     <div className="text-right pl-2 md:pl-3 border-l border-rose-200">
                                         <p className="text-[6px] md:text-[8px] font-bold text-rose-400 uppercase tracking-wide leading-none mb-0.5">Contact</p>
-                                        <p className="text-[8px] md:text-[10px] font-bold text-rose-700 truncate max-w-[70px] md:max-w-[90px] leading-none">{patient.emergencyContactName}</p>
+                                        <p className="text-[8px] md:text-[10px] font-bold text-rose-700 leading-none whitespace-nowrap">{patient.emergencyContactName}</p>
                                     </div>
                                 )}
                             </div>
