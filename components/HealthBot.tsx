@@ -87,7 +87,7 @@ export default function HealthBot() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="absolute bottom-28 right-6 z-[9999] p-4 bg-teal-600 text-white rounded-full shadow-xl hover:bg-teal-700 transition-all duration-300 hover:scale-110 flex items-center justify-center group"
+                    className="absolute bottom-48 sm:bottom-28 right-4 sm:right-6 z-[9999] p-4 bg-teal-600 text-white rounded-full shadow-xl hover:bg-teal-700 transition-all duration-300 hover:scale-110 flex items-center justify-center group"
                 >
                     <Bot className="w-7 h-7" />
                     <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap group-hover:pl-2 text-sm font-semibold">
@@ -101,8 +101,8 @@ export default function HealthBot() {
                 <div
                     className={`absolute z-[9999] bg-white shadow-2xl transition-all duration-300 flex flex-col overflow-hidden border border-slate-200 max-h-[calc(100vh-10rem)] mr-0 sm:mr-0
             ${isMaximized
-                            ? 'bottom-28 right-6 w-[90vw] h-[70vh] sm:w-[500px] sm:h-[600px] rounded-2xl'
-                            : 'bottom-28 right-6 w-[90vw] h-[50vh] sm:w-[380px] sm:h-[450px] rounded-2xl'
+                            ? 'bottom-48 sm:bottom-28 right-4 sm:right-6 w-[90vw] h-[70vh] sm:w-[500px] sm:h-[600px] rounded-2xl'
+                            : 'bottom-48 sm:bottom-28 right-4 sm:right-6 w-[90vw] h-[50vh] sm:w-[380px] sm:h-[450px] rounded-2xl'
                         }`}
                 >
                     {/* Header */}

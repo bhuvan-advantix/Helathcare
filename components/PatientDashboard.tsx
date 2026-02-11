@@ -284,15 +284,15 @@ function HealthCard({ user, patient }: HealthCardProps) {
                             </div>
                             <div className="flex-1 flex justify-between items-center">
                                 <div>
-                                    <p className="text-[6px] md:text-[8px] font-extrabold text-rose-400 uppercase tracking-widest leading-none mb-0.5">Emergency SOS</p>
-                                    <p className="text-sm md:text-lg font-black text-rose-700 tracking-tight leading-none">
+                                    <p className="text-[5px] md:text-[8px] font-extrabold text-rose-400 uppercase tracking-widest leading-none mb-0.5">Emergency SOS</p>
+                                    <p className="text-[10px] md:text-lg font-black text-rose-700 tracking-tight leading-none">
                                         {(patient?.emergencyContactPhone || "N/A").replace('+91', '+91-')}
                                     </p>
                                 </div>
                                 {patient?.emergencyContactName && (
                                     <div className="text-right pl-2 md:pl-3 border-l border-rose-200">
-                                        <p className="text-[6px] md:text-[8px] font-bold text-rose-400 uppercase tracking-wide leading-none mb-0.5">Contact</p>
-                                        <p className="text-[8px] md:text-[10px] font-bold text-rose-700 leading-none whitespace-nowrap">{patient.emergencyContactName}</p>
+                                        <p className="text-[5px] md:text-[8px] font-bold text-rose-400 uppercase tracking-wide leading-none mb-0.5">Contact</p>
+                                        <p className="text-[7px] md:text-[10px] font-bold text-rose-700 leading-none whitespace-nowrap">{patient.emergencyContactName}</p>
                                     </div>
                                 )}
                             </div>
@@ -304,8 +304,8 @@ function HealthCard({ user, patient }: HealthCardProps) {
                                 <MapPin className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[6px] md:text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-0.5">Resident Location</p>
-                                <p className="text-[8px] md:text-[10px] font-bold text-slate-700 truncate leading-none">
+                                <p className="text-[5px] md:text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-0.5">Resident Location</p>
+                                <p className="text-[7px] md:text-[10px] font-bold text-slate-700 truncate leading-none">
                                     {patient?.address ? patient.address.toUpperCase() : (patient?.city?.toUpperCase() || "LOCATION NOT PROVIDED")}
                                 </p>
                             </div>
@@ -315,24 +315,24 @@ function HealthCard({ user, patient }: HealthCardProps) {
                         <div className="grid grid-cols-2 gap-1 md:gap-2 mb-auto h-full">
                             {/* Cell 1: Height & Weight */}
                             <div className="bg-slate-50 rounded-lg p-1 md:p-2 border border-slate-100 flex flex-col justify-center">
-                                <p className="text-[6px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide mb-1 flex items-center gap-1">
+                                <p className="text-[5px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide mb-1 flex items-center gap-1">
                                     <Activity className="w-2.5 h-2.5 md:w-3 md:h-3 text-blue-500" />
                                     Body Vitals
                                 </p>
                                 <div className="flex items-center justify-between px-0.5 md:px-1">
                                     <div className="text-center">
-                                        <p className="text-[5px] md:text-[7px] text-slate-400 font-bold uppercase mb-0.5">Height</p>
+                                        <p className="text-[4px] md:text-[7px] text-slate-400 font-bold uppercase mb-0.5">Height</p>
                                         <div className="flex items-baseline justify-center gap-0.5">
-                                            <span className="text-[8px] md:text-xs font-bold text-slate-700 block leading-none">{patient?.height || "-"}</span>
-                                            <span className="text-[5px] md:text-[7px] text-slate-400 font-bold uppercase">cm</span>
+                                            <span className="text-[7px] md:text-xs font-bold text-slate-700 block leading-none">{patient?.height || "-"}</span>
+                                            <span className="text-[4px] md:text-[7px] text-slate-400 font-bold uppercase">cm</span>
                                         </div>
                                     </div>
                                     <div className="w-px h-4 md:h-6 bg-slate-200 mx-1"></div>
                                     <div className="text-center">
-                                        <p className="text-[5px] md:text-[7px] text-slate-400 font-bold uppercase mb-0.5">Weight</p>
+                                        <p className="text-[4px] md:text-[7px] text-slate-400 font-bold uppercase mb-0.5">Weight</p>
                                         <div className="flex items-baseline justify-center gap-0.5">
-                                            <span className="text-[8px] md:text-xs font-bold text-slate-700 block leading-none">{patient?.weight || "-"}</span>
-                                            <span className="text-[5px] md:text-[7px] text-slate-400 font-bold uppercase">kg</span>
+                                            <span className="text-[7px] md:text-xs font-bold text-slate-700 block leading-none">{patient?.weight || "-"}</span>
+                                            <span className="text-[4px] md:text-[7px] text-slate-400 font-bold uppercase">kg</span>
                                         </div>
                                     </div>
                                 </div>
@@ -342,9 +342,9 @@ function HealthCard({ user, patient }: HealthCardProps) {
                             <div className="bg-slate-50 rounded-lg p-1 md:p-2 border border-slate-100 flex flex-col justify-center">
                                 <div className="flex items-center gap-1 mb-1">
                                     <AlertCircle className="w-2.5 h-2.5 md:w-3 md:h-3 text-amber-500" />
-                                    <p className="text-[6px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Allergies</p>
+                                    <p className="text-[5px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Allergies</p>
                                 </div>
-                                <div className="text-[8px] md:text-[10px] leading-tight truncate">
+                                <div className="text-[7px] md:text-[10px] leading-tight truncate">
                                     {formatList(patient?.allergies)}
                                 </div>
                             </div>
@@ -353,9 +353,9 @@ function HealthCard({ user, patient }: HealthCardProps) {
                             <div className="bg-slate-50 rounded-lg p-1 md:p-2 border border-slate-100 flex flex-col justify-center">
                                 <div className="flex items-center gap-1 mb-1">
                                     <Tablet className="w-2.5 h-2.5 md:w-3 md:h-3 text-teal-500" />
-                                    <p className="text-[6px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Meds</p>
+                                    <p className="text-[5px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Meds</p>
                                 </div>
-                                <div className="text-[8px] md:text-[10px] leading-tight truncate">
+                                <div className="text-[7px] md:text-[10px] leading-tight truncate">
                                     {formatList(combinedMeds)}
                                 </div>
                             </div>
@@ -364,9 +364,9 @@ function HealthCard({ user, patient }: HealthCardProps) {
                             <div className="bg-slate-50 rounded-lg p-1 md:p-2 border border-slate-100 flex flex-col justify-center">
                                 <div className="flex items-center gap-1 mb-1">
                                     <HeartPulse className="w-2.5 h-2.5 md:w-3 md:h-3 text-purple-500" />
-                                    <p className="text-[6px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Conditions</p>
+                                    <p className="text-[5px] md:text-[8px] text-slate-400 uppercase font-bold tracking-wide">Conditions</p>
                                 </div>
-                                <div className="text-[8px] md:text-[10px] leading-tight truncate">
+                                <div className="text-[7px] md:text-[10px] leading-tight truncate">
                                     {formatList(patient?.chronicConditions)}
                                 </div>
                             </div>
