@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { addMedication, stopMedication, restartMedication } from '@/app/actions/medications';
+import { uploadLabReport, getLabReports, deleteLabReport } from '@/app/actions/labReports';
 import confetti from 'canvas-confetti';
 import { useRouter } from 'next/navigation';
 import { signOut } from "next-auth/react";
@@ -48,6 +49,7 @@ import {
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import HelpSupportView from '@/components/HelpSupportView';
 import DashboardNavbar from '@/components/DashboardNavbar';
+import LabReports from '@/components/LabReports';
 import Footer from '@/components/Footer';
 // --- Dashboard Components ---
 
@@ -645,7 +647,7 @@ const CompactFolderCard = ({
     href,
     className,
 }: CompactFolderCardProps) => {
-    return (
+    const CardContent = (
         <motion.div
             className={cn(
                 "group flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-100 transition-all cursor-pointer",
@@ -707,70 +709,80 @@ const CompactFolderCard = ({
             </div>
         </motion.div>
     );
+
+    if (href) {
+        return (
+            <Link href={href} className="block w-full">
+                {CardContent}
+            </Link>
+        );
+    }
+
+    return CardContent;
 };
 
 // --- Main Section Component ---
-function DiagnosticReportsSection() {
-    const reports = [
-        {
-            title: "Blood Test Report",
-            hospital: "City General Hospital",
-            date: "Feb 05, 2026",
-            images: [
-                "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?auto=format&fit=crop&q=80&w=200", // Chart 1
-                "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=200", // Chart 2
-                "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=200", // Vials
-            ],
-            href: "/reports/blood-feb-2026"
-        },
-        {
-            title: "Lab Results",
-            hospital: "Metro Labs",
-            date: "Feb 01, 2026",
-            images: [
-                "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=200", // Tablet
-                "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?auto=format&fit=crop&q=80&w=200", // Chart 1
-            ],
-            href: "/reports/lab-feb-2026"
-        },
-        {
-            title: "Blood Test Report",
-            hospital: "City General Hospital",
-            date: "Dec 21, 2025",
-            images: [
-                "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=200", // Chart 2
-                "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=200", // Tablet
-            ],
-            href: "/reports/blood-dec-2025"
-        },
-        {
-            title: "Blood Test Report",
-            hospital: "City General Hospital",
-            date: "Nov 14, 2025",
-            images: [
-                "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=200", // Vials
-                "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=200", // Tablet
-                "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?auto=format&fit=crop&q=80&w=200", // Chart 1
-            ],
-            href: "/reports/blood-nov-2025"
-        }
+interface DiagnosticReportsSectionProps {
+    reports: any[];
+}
+
+function DiagnosticReportsSection({ reports }: DiagnosticReportsSectionProps) {
+    // Placeholder images for the folder effect
+    const defaultImages = [
+        "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?auto=format&fit=crop&q=80&w=200",
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=200",
+        "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=200",
     ];
+
+    if (!reports || reports.length === 0) {
+        return (
+            <div className="space-y-6">
+                <h2 className="text-xl font-bold text-slate-900">Diagnostic Reports</h2>
+                <div className="bg-white rounded-2xl p-8 border border-slate-100 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">No Reports Yet</h3>
+                    <p className="text-slate-500 text-sm mt-1">Uploaded lab reports will appear here as folders.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-bold text-slate-900">Diagnostic Reports</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {reports.map((report, idx) => (
-                    <CompactFolderCard
-                        key={idx}
-                        title={report.title}
-                        hospital={report.hospital}
-                        date={report.date}
-                        images={report.images}
-                        href={report.href}
-                        className="w-full"
-                    />
-                ))}
+                {reports.map((report, idx) => {
+                    // Try to format date nicely
+                    let dateStr = "Unknown Date";
+                    if (report.reportDate) {
+                        try {
+                            const d = new Date(report.reportDate);
+                            // check if valid
+                            if (!isNaN(d.getTime())) {
+                                dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            } else {
+                                dateStr = report.reportDate;
+                            }
+                        } catch (e) { dateStr = report.reportDate }
+                    } else if (report.uploadedAt) {
+                        const d = new Date(report.uploadedAt);
+                        dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    }
+
+                    return (
+                        <CompactFolderCard
+                            key={report.id || idx}
+                            title={report.fileName || "Lab Report"}
+                            hospital={report.labName || "Medical Center"}
+                            date={dateStr}
+                            images={defaultImages} // Visual decoration
+                            href={`/labreports/${report.id}`}
+                            className="w-full"
+                        />
+                    );
+                })}
             </div>
         </div>
     );
@@ -1026,6 +1038,11 @@ export default function PatientDashboard({ data }: DashboardProps) {
     const [showAddMedication, setShowAddMedication] = useState(false);
     const [editingMed, setEditingMed] = useState<any>(null);
 
+    // Lab Reports State
+    const [labReportsData, setLabReportsData] = useState<any[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState('');
+
     const [confirmAction, setConfirmAction] = useState<{ type: 'stop' | 'resume'; id: string; name: string } | null>(null);
 
     const handleStop = (id: string, name: string) => {
@@ -1049,6 +1066,55 @@ export default function PatientDashboard({ data }: DashboardProps) {
             setConfirmAction(null);
         } catch (error) {
             console.error("Action failed", error);
+        }
+    };
+
+    // Load lab reports when view changes to lab reports
+    useEffect(() => {
+        if (currentView === 'labreports') {
+            loadLabReports();
+        }
+    }, [currentView]);
+
+    const loadLabReports = async () => {
+        const result = await getLabReports(user.id);
+        if (result.success && result.reports) {
+            setLabReportsData(result.reports);
+        }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setUploadError('');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const result = await uploadLabReport(formData, user.id);
+
+            if (result.success) {
+                // Redirect to lab reports page
+                router.push(`/labreports/${result.reportId}`);
+            } else {
+                setUploadError(result.error || 'Upload failed');
+            }
+        } catch (error) {
+            setUploadError('Failed to upload file');
+        } finally {
+            setIsUploading(false);
+            // Reset file input
+            event.target.value = '';
+        }
+    };
+
+    const handleDeleteReport = async (reportId: string) => {
+        const result = await deleteLabReport(reportId);
+        if (result.success) {
+            await loadLabReports();
         }
     };
 
@@ -1496,17 +1562,44 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                 variants={itemVariants}
                                 className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col"
                             >
-                                <h2 className="text-xl font-bold text-slate-900 mb-6">Upload Health Reports</h2>
-                                <div className="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 p-6 min-h-[200px] hover:bg-slate-50 transition-colors cursor-pointer group">
-                                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                        <UploadCloud className="w-6 h-6 text-teal-500" />
+                                <h2 className="text-xl font-bold text-slate-900 mb-6">Upload Lab Reports</h2>
+                                <label
+                                    htmlFor="lab-report-upload"
+                                    className="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 p-6 min-h-[200px] hover:bg-slate-50 transition-colors cursor-pointer group"
+                                >
+                                    <input
+                                        id="lab-report-upload"
+                                        type="file"
+                                        accept="application/pdf"
+                                        onChange={handleFileUpload}
+                                        disabled={isUploading}
+                                        className="hidden"
+                                    />
+                                    {isUploading ? (
+                                        <>
+                                            <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4" />
+                                            <p className="text-sm font-bold text-teal-600">Processing PDF...</p>
+                                            <p className="text-xs text-slate-400 mt-1">Extracting lab data</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                                <UploadCloud className="w-6 h-6 text-teal-500" />
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-700 text-center mb-1">Click to upload your lab reports</p>
+                                            <p className="text-xs text-slate-400 text-center mb-4">Supported format: PDF only</p>
+                                            <span className="px-4 py-2 bg-teal-50 text-teal-700 text-sm font-bold rounded-lg hover:bg-teal-100 transition-colors">
+                                                Browse Files
+                                            </span>
+                                        </>
+                                    )}
+                                </label>
+                                {uploadError && (
+                                    <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm font-medium rounded-lg flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4" />
+                                        {uploadError}
                                     </div>
-                                    <p className="text-sm font-medium text-slate-700 text-center mb-1">Drag and drop your health reports here</p>
-                                    <p className="text-xs text-slate-400 text-center mb-4">Supported formats: PDF, JSON</p>
-                                    <button className="px-4 py-2 bg-teal-50 text-teal-700 text-sm font-bold rounded-lg hover:bg-teal-100 transition-colors">
-                                        Browse Files
-                                    </button>
-                                </div>
+                                )}
                             </motion.div>
                         </div>
 
@@ -1533,7 +1626,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
 
                         {/* Diagnostic Reports */}
                         <motion.div variants={itemVariants}>
-                            <DiagnosticReportsSection />
+                            <DiagnosticReportsSection reports={(patient?.reports as any[]) || []} />
                         </motion.div>
 
                     </motion.div>
@@ -1541,6 +1634,13 @@ export default function PatientDashboard({ data }: DashboardProps) {
 
                 {/* Other Views */}
                 {currentView === 'help' && <HelpSupportView />}
+                {currentView === 'labreports' && (
+                    <LabReports
+                        user={user}
+                        reports={labReportsData}
+                        onDelete={handleDeleteReport}
+                    />
+                )}
             </main>
 
             {/* Add/Edit Medication Modal */}

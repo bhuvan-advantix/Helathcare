@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth"; // Adjust path if needed
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { users, patients, medications } from "@/db/schema";
+import { users, patients, medications, labReports } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import PatientDashboard from '@/components/PatientDashboard';
 
@@ -31,13 +31,19 @@ export default async function DashboardPage() {
 
     // Fetch Medications if patient exists
     let patientMedications: any[] = [];
+    let patientReports: any[] = [];
     if (patientData) {
         patientMedications = await db.select().from(medications).where(eq(medications.patientId, patientData.id));
+        patientReports = await db.query.labReports.findMany({
+            where: eq(labReports.patientId, patientData.id),
+            orderBy: (reports, { desc }) => [desc(reports.uploadedAt)],
+        });
     }
 
     // Prepare data object (serializing dates/etc if needed)
     const dashboardData = {
         user: {
+            id: userData.id,
             name: userData.name || "User",
             customId: userData.customId || "Pending",
             email: userData.email,
@@ -50,6 +56,11 @@ export default async function DashboardPage() {
             medications: patientMedications.map(m => ({
                 ...m,
                 createdAt: m.createdAt?.toISOString() || null
+            })),
+            reports: patientReports.map(r => ({
+                ...r,
+                reportDate: r.reportDate ? r.reportDate.toString() : null, // Ensure string
+                uploadedAt: r.uploadedAt?.toISOString() || null,
             }))
         } : null
     };

@@ -8,6 +8,7 @@ import {
     LayoutDashboard,
     Clock,
     Stethoscope,
+    FileText,
     User,
     LogOut,
     Menu,
@@ -80,8 +81,15 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
                     <div className="flex justify-between items-center h-20">
                         {/* Logo */}
                         <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group cursor-pointer">
-                            <div className="w-9 h-9 bg-teal-500/10 rounded-xl flex items-center justify-center group-hover:bg-teal-500 transition-colors duration-300">
-                                <span className="text-teal-600 font-bold text-xl group-hover:text-white transition-colors">N</span>
+                            <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-sm shrink-0">
+                                <Image
+                                    src="/Nrivaa Logo.jpeg"
+                                    alt="Niraiva Logo"
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 36px, 36px"
+                                    quality={100}
+                                />
                             </div>
                             <span className="font-bold text-xl tracking-tight text-slate-800">
                                 Niraiva<span className="text-teal-600">Health</span>

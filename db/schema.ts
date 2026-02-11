@@ -128,6 +128,31 @@ export const medications = sqliteTable('medications', {
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+// Lab Reports Table
+export const labReports = sqliteTable('lab_reports', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+
+    // Report Metadata
+    fileName: text('file_name').notNull(),
+    reportDate: text('report_date'), // Extracted from PDF
+    labName: text('lab_name'), // Extracted from PDF
+    patientName: text('patient_name'), // Extracted from PDF
+    doctorName: text('doctor_name'), // Extracted from PDF
+
+    // Extracted Data (stored as JSON)
+    extractedData: text('extracted_data', { mode: 'json' }).notNull(), // Array of test results
+    rawText: text('raw_text'), // Full extracted text for reference
+
+    // File Info
+    fileSize: integer('file_size'), // in bytes
+    pageCount: integer('page_count'),
+    fileData: text('file_data'), // Base64 encoded file content
+
+    // Timestamps
+    uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 // Archive Table for Deleted Accounts
 export const deletedAccounts = sqliteTable('deleted_accounts', {
     id: text('id').primaryKey().$defaultFn(() => uuidv4()),

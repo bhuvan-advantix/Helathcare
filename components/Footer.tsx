@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
     return (
@@ -10,8 +11,15 @@ export default function Footer() {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative">
                     <div className="flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2 group cursor-pointer">
-                            <div className="w-8 h-8 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500 transition-colors duration-300">
-                                <span className="text-teal-600 font-bold text-lg group-hover:text-white transition-colors">N</span>
+                            <div className="relative w-8 h-8 rounded-lg overflow-hidden shadow-sm shrink-0">
+                                <Image
+                                    src="/Nrivaa Logo.jpeg"
+                                    alt="Niraiva Logo"
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 32px, 32px"
+                                    quality={100}
+                                />
                             </div>
                             <span className="font-bold text-xl tracking-tight text-slate-800">
                                 Niraiva<span className="text-teal-600">Health</span>
