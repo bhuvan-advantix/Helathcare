@@ -143,6 +143,7 @@ export const labReports = sqliteTable('lab_reports', {
     // Extracted Data (stored as JSON)
     extractedData: text('extracted_data', { mode: 'json' }).notNull(), // Array of test results
     rawText: text('raw_text'), // Full extracted text for reference
+    analysis: text('analysis'), // AI generated analysis of the report
 
     // File Info
     fileSize: integer('file_size'), // in bytes
@@ -166,6 +167,26 @@ export const deletedAccounts = sqliteTable('deleted_accounts', {
 
     // Backup of key profile data (JSON stringified for simplicity or specific columns)
     profileSnapshot: text('profile_snapshot', { mode: 'json' }), // Stores the entire patient/doctor record as JSON
+});
+
+// Health Parameters Table - Stores key health metrics from lab reports
+export const healthParameters = sqliteTable('health_parameters', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    labReportId: text('lab_report_id').references(() => labReports.id, { onDelete: 'cascade' }),
+
+    // Parameter Details
+    parameterName: text('parameter_name').notNull(), // e.g., "Blood Glucose", "Blood Pressure", "HbA1c", "Total Cholesterol"
+    value: text('value').notNull(), // The actual value
+    unit: text('unit'), // e.g., "mg/dL", "mmHg", "%"
+    referenceRange: text('reference_range'), // e.g., "70-100"
+    status: text('status'), // 'normal' | 'high' | 'low'
+
+    // Test Date (from the lab report)
+    testDate: text('test_date'), // Date when the test was conducted
+
+    // Timestamps
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
 // Support Tickets Table

@@ -409,31 +409,76 @@ const InfoItem = ({ label, value, badges }: { label: string, value?: string | nu
 );
 
 const HealthMetricCard = ({ title, value, unit, status, date, icon, statusColor }: any) => {
+    // Format date nicely
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '-';
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+            return '-';
+        }
+    };
+
+    // Determine status badge color
+    const getStatusBadgeColor = (status: string | null) => {
+        if (!status) return '';
+        const s = status.toLowerCase();
+        if (s.includes('high')) return 'bg-red-50 text-red-600 ring-red-200';
+        if (s.includes('low')) return 'bg-amber-50 text-amber-600 ring-amber-200';
+        return 'bg-emerald-50 text-emerald-600 ring-emerald-200';
+    };
+
+    // Determine value text color
+    const getValueTextColor = (status: string | null) => {
+        if (!status) return 'text-slate-900';
+        const s = status.toLowerCase();
+        if (s.includes('high') || s.includes('low')) return 'text-red-600';
+        if (s.includes('normal')) return 'text-emerald-600';
+        return 'text-slate-900';
+    };
+
+    // Clean value (remove H/L prefixes and units mixed in value)
+    const cleanValue = (val: string | null) => {
+        if (!val) return null;
+        // Remove High/Low/Normal/H/L prefixes
+        let cleaned = val.replace(/^[HLNhln]\s+/, '').replace(/^(High|Low|Normal)\s+/i, '').trim();
+        // Remove common units if they are part of the value string
+        cleaned = cleaned.replace(/\s*mm\s*Hg$/i, '').replace(/\s*mg\/dL$/i, '').replace(/\s*%$/, '').trim();
+        return cleaned;
+    };
+
+    const finalValue = cleanValue(value);
+    const textColor = getValueTextColor(status);
+
     return (
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 transition-all duration-300 cursor-pointer group">
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 transition-all duration-300 cursor-pointer group relative">
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2 text-slate-500">
                     <span className="p-1.5 bg-slate-50 rounded-lg">{icon}</span>
                     <span className="font-semibold text-sm">{title}</span>
                 </div>
-                {status && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${status === 'warning' ? 'bg-amber-50 text-amber-600 ring-amber-200' : 'bg-emerald-50 text-emerald-600 ring-emerald-200'
-                        }`}>
-                        {status}
+                {value && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-teal-50 text-teal-600 ring-1 ring-teal-200">
+                        Latest
                     </span>
                 )}
             </div>
             <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-3xl font-bold text-slate-900">{value || "-"}</span>
-                <span className="text-sm text-slate-500 font-medium">{unit}</span>
+                <span className={`text-3xl font-black ${textColor}`}>{finalValue || "-"}</span>
+                {finalValue && <span className="text-sm text-slate-400 font-medium">{unit}</span>}
             </div>
             {status && (
-                <div className={`text-xs font-medium mb-3 flex items-center gap-1 ${status === 'warning' ? 'text-amber-600' : 'text-emerald-600'
-                    }`}>
-                    {status === 'normal' ? '↑ improved' : '→ stable'}
+                <div className="mb-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${getStatusBadgeColor(status)}`}>
+                        {status}
+                    </span>
                 </div>
             )}
-            <p className="text-[10px] text-slate-400">Last updated: {date || "Today"}</p>
+            <p className="text-[10px] text-slate-400">
+                {finalValue ? `Test date: ${formatDate(date)}` : 'No data available'}
+            </p>
         </div>
     );
 }
@@ -801,6 +846,7 @@ interface DashboardProps {
     data: {
         user: any;
         patient: any;
+        healthParameters?: Record<string, any>;
     }
 }
 
@@ -1039,7 +1085,7 @@ const AddMedicationModal = ({ patientId, onClose, initialData }: { patientId: st
 };
 
 export default function PatientDashboard({ data }: DashboardProps) {
-    const { user, patient } = data;
+    const { user, patient, healthParameters = {} } = data;
     const router = useRouter();
     const [currentView, setCurrentView] = useState('dashboard');
     const [expandedNote, setExpandedNote] = useState<number | null>(null);
@@ -1310,34 +1356,46 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         <motion.div variants={itemVariants}>
                             <h2 className="text-xl font-bold text-slate-900 mb-6">Health Parameters</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                                <HealthMetricCard
-                                    title="Blood Glucose"
-                                    value={null}
-                                    unit="mg/dL"
-                                    icon={<Droplets className="w-4 h-4 text-pink-500" />}
-                                    date="-"
-                                />
-                                <HealthMetricCard
-                                    title="Blood Pressure"
-                                    value={null}
-                                    unit="mmHg"
-                                    icon={<Activity className="w-4 h-4 text-emerald-500" />}
-                                    date="-"
-                                />
-                                <HealthMetricCard
-                                    title="HbA1c"
-                                    value={null}
-                                    unit="%"
-                                    icon={<Scale className="w-4 h-4 text-violet-500" />}
-                                    date="-"
-                                />
-                                <HealthMetricCard
-                                    title="Total Cholesterol"
-                                    value={null}
-                                    unit="mg/dL"
-                                    icon={<Heart className="w-4 h-4 text-rose-500" />}
-                                    date="-"
-                                />
+                                <Link href="/dashboard/health?param=Blood%20Glucose">
+                                    <HealthMetricCard
+                                        title="Blood Glucose"
+                                        value={healthParameters['Blood Glucose']?.value || null}
+                                        unit={healthParameters['Blood Glucose']?.unit || 'mg/dL'}
+                                        status={healthParameters['Blood Glucose']?.status || null}
+                                        date={healthParameters['Blood Glucose']?.testDate || null}
+                                        icon={<Droplets className="w-4 h-4 text-pink-500" />}
+                                    />
+                                </Link>
+                                <Link href="/dashboard/health?param=Blood%20Pressure">
+                                    <HealthMetricCard
+                                        title="Blood Pressure"
+                                        value={healthParameters['Blood Pressure']?.value || null}
+                                        unit={healthParameters['Blood Pressure']?.unit || 'mmHg'}
+                                        status={healthParameters['Blood Pressure']?.status || null}
+                                        date={healthParameters['Blood Pressure']?.testDate || null}
+                                        icon={<Activity className="w-4 h-4 text-emerald-500" />}
+                                    />
+                                </Link>
+                                <Link href="/dashboard/health?param=HbA1c">
+                                    <HealthMetricCard
+                                        title="HbA1c"
+                                        value={healthParameters['HbA1c']?.value || null}
+                                        unit={healthParameters['HbA1c']?.unit || '%'}
+                                        status={healthParameters['HbA1c']?.status || null}
+                                        date={healthParameters['HbA1c']?.testDate || null}
+                                        icon={<Scale className="w-4 h-4 text-violet-500" />}
+                                    />
+                                </Link>
+                                <Link href="/dashboard/health?param=Total%20Cholesterol">
+                                    <HealthMetricCard
+                                        title="Total Cholesterol"
+                                        value={healthParameters['Total Cholesterol']?.value || null}
+                                        unit={healthParameters['Total Cholesterol']?.unit || 'mg/dL'}
+                                        status={healthParameters['Total Cholesterol']?.status || null}
+                                        date={healthParameters['Total Cholesterol']?.testDate || null}
+                                        icon={<Heart className="w-4 h-4 text-rose-500" />}
+                                    />
+                                </Link>
                             </div>
                         </motion.div>
 

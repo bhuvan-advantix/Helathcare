@@ -1,10 +1,11 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth"; // Adjust path if needed
 import { redirect } from "next/navigation";
-import { db } from "@/db";
+import { db, ensureLabReportsSchema } from "@/db";
 import { users, patients, medications, labReports } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import PatientDashboard from '@/components/PatientDashboard';
+import { getLatestHealthParameters } from '@/app/actions/labReports';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
@@ -32,12 +33,33 @@ export default async function DashboardPage() {
     // Fetch Medications if patient exists
     let patientMedications: any[] = [];
     let patientReports: any[] = [];
+    let healthParams: Record<string, any> = {};
+
     if (patientData) {
+        await ensureLabReportsSchema();
         patientMedications = await db.select().from(medications).where(eq(medications.patientId, patientData.id));
         patientReports = await db.query.labReports.findMany({
             where: eq(labReports.patientId, patientData.id),
             orderBy: (reports, { desc }) => [desc(reports.uploadedAt)],
+            columns: {
+                id: true,
+                patientId: true,
+                fileName: true,
+                reportDate: true,
+                labName: true,
+                patientName: true,
+                doctorName: true,
+                fileSize: true,
+                pageCount: true,
+                uploadedAt: true
+            }
         });
+
+        // Fetch latest health parameters
+        const healthParamsResult = await getLatestHealthParameters(userId);
+        if (healthParamsResult.success && healthParamsResult.parameters) {
+            healthParams = healthParamsResult.parameters;
+        }
     }
 
     // Prepare data object (serializing dates/etc if needed)
@@ -62,7 +84,8 @@ export default async function DashboardPage() {
                 reportDate: r.reportDate ? r.reportDate.toString() : null, // Ensure string
                 uploadedAt: r.uploadedAt?.toISOString() || null,
             }))
-        } : null
+        } : null,
+        healthParameters: healthParams
     };
 
     return <PatientDashboard data={dashboardData} />;

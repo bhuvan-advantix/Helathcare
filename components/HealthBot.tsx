@@ -79,7 +79,8 @@ export default function HealthBot() {
         }
     };
 
-    if (!session || !pathname?.startsWith('/dashboard')) return null;
+    // Hide chatbot if not logged in, not on dashboard, or on health parameters page
+    if (!session || !pathname?.startsWith('/dashboard') || pathname?.includes('/health')) return null;
 
     return (
         <>
