@@ -42,10 +42,12 @@ async function extractLabDataWithAI(buffer: Buffer): Promise<{
         // 1. LlamaParse Extraction
         const parser = new LlamaParse({ apiKey: llamaKey });
 
-        // Convert Buffer to Blob for LlamaParse
-        const blob = new Blob([new Uint8Array(buffer)], { type: 'application/pdf' });
+        // Convert Buffer to File for LlamaParse (Vercel-compatible)
+        // Using File constructor instead of Blob for better serverless compatibility
+        const uint8Array = new Uint8Array(buffer);
+        const file = new File([uint8Array], 'report.pdf', { type: 'application/pdf' });
 
-        const result = await parser.parseFile(blob);
+        const result = await parser.parseFile(file);
         const rawMarkdown = result.markdown;
 
         console.log("LlamaParse complete. Length:", rawMarkdown.length);
