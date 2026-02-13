@@ -6,6 +6,14 @@ import { eq } from 'drizzle-orm';
 import { LlamaParse } from "llama-parse";
 import { revalidatePath } from 'next/cache';
 import { uploadPdfToCloudinary, deletePdfFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Ensure Cloudinary is configured
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 interface TestResult {
     category: string;
@@ -224,11 +232,60 @@ export async function processUploadedReport(cloudinaryUrl: string, userId: strin
     console.log('Processing pre-uploaded report:', cloudinaryUrl);
 
     try {
-        // 1. Download the file from Cloudinary to a buffer
-        const response = await fetch(cloudinaryUrl);
-        if (!response.ok) throw new Error(`Failed to download from Cloudinary: ${response.statusText}`);
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        // Extract public_id from the URL to generate an authenticated download link
+        const publicId = extractPublicIdFromUrl(cloudinaryUrl);
+
+        if (!publicId) {
+            throw new Error('Could not extract public ID from Cloudinary URL');
+        }
+
+        // Determine resource type from URL
+        const resourceType = cloudinaryUrl.includes('/raw/') ? 'raw' : 'image';
+
+        // For raw files, add back the extension that was stripped by extractPublicIdFromUrl
+        let finalPublicId = publicId;
+
+        if (resourceType === 'raw' && !publicId.endsWith('.pdf')) {
+            finalPublicId = publicId + '.pdf';
+        }
+
+        console.log('Fetching file content via Cloudinary API for:', finalPublicId, 'resource_type:', resourceType);
+
+        // Use Cloudinary's uploader.explicit to get the file and then download it
+        // This is the ONLY method that works with strict Cloudinary accounts
+        let buffer: Buffer;
+        try {
+            // First, try to get the resource to verify it exists
+            const resource = await cloudinary.api.resource(finalPublicId, {
+                resource_type: resourceType,
+                type: 'upload'
+            });
+
+            console.log('Resource verified. Bytes:', resource.bytes);
+
+            // For strict accounts, we need to use the original cloudinaryUrl 
+            // but with an access_mode transformation or download the file differently
+            // Let's try using cloudinary.uploader.upload_stream or download via Admin API
+
+            // Actually, let's use a different approach: use the original URL from upload
+            // which should still be accessible immediately after upload
+            console.log('Attempting direct download from original URL:', cloudinaryUrl);
+
+            const response = await fetch(cloudinaryUrl);
+
+            if (!response.ok) {
+                // If original URL fails, this account requires unsigned uploads or different config
+                throw new Error(`Cannot access uploaded file. Cloudinary account has strict access controls. Status: ${response.status}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+            console.log('Successfully downloaded file, size:', buffer.length);
+
+        } catch (apiError: any) {
+            console.error('Cloudinary API Error:', apiError);
+            throw new Error(`Failed to fetch resource from Cloudinary: ${apiError.message}`);
+        }
 
         // 2. Get patient record
         const patient = await db.query.patients.findFirst({

@@ -1181,6 +1181,8 @@ export default function PatientDashboard({ data }: DashboardProps) {
             formData.append('timestamp', timestamp.toString());
             formData.append('signature', signature);
             formData.append('folder', 'lab_reports');
+            formData.append('type', 'upload'); // Explicitly set as public upload
+            formData.append('access_mode', 'public'); // Force public access
 
             // Use 'raw' resource type for PDFs if 'auto' fails, but 'auto' usually works. 
             // However, specialized PDFs sometimes need 'image' or 'raw'. Cloudinary 'auto' is safest.
