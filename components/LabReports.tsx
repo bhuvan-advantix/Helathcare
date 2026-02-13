@@ -103,13 +103,35 @@ export default function LabReports({
             setDownloadingId(reportId);
             const result = await getReportPdf(reportId);
 
-            if (result.success && result.fileData) {
-                const link = document.createElement('a');
-                link.href = `data:application/pdf;base64,${result.fileData}`;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            if (result.success) {
+                // Handle Cloudinary URL (new method)
+                if (result.cloudinaryUrl) {
+                    // Fetch the PDF from Cloudinary
+                    const response = await fetch(result.cloudinaryUrl);
+                    const blob = await response.blob();
+
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }
+                // Handle legacy base64 data
+                else if (result.fileData) {
+                    const link = document.createElement('a');
+                    link.href = `data:application/pdf;base64,${result.fileData}`;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+                else {
+                    alert('Failed to download report. File not found.');
+                }
             } else {
                 alert('Failed to download report. Please try again.');
             }

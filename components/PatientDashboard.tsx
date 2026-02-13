@@ -423,20 +423,24 @@ const HealthMetricCard = ({ title, value, unit, status, date, icon, statusColor 
 
     // Determine status badge color
     const getStatusBadgeColor = (status: string | null) => {
-        if (!status) return '';
-        const s = status.toLowerCase();
-        if (s.includes('high')) return 'bg-red-50 text-red-600 ring-red-200';
-        if (s.includes('low')) return 'bg-amber-50 text-amber-600 ring-amber-200';
-        return 'bg-emerald-50 text-emerald-600 ring-emerald-200';
+        // If status is present:
+        if (status) {
+            const s = status.toLowerCase();
+            if (s.includes('high') || s.includes('low') || s.includes('critical')) return 'bg-red-50 text-red-600 ring-1 ring-red-200';
+        }
+        // Default (Normal) - also catches empty status if we force it later
+        return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200';
     };
 
     // Determine value text color
-    const getValueTextColor = (status: string | null) => {
-        if (!status) return 'text-slate-900';
-        const s = status.toLowerCase();
-        if (s.includes('high') || s.includes('low')) return 'text-red-600';
-        if (s.includes('normal')) return 'text-emerald-600';
-        return 'text-slate-900';
+    const getValueTextColor = (statusValue: string | null) => {
+        // If status is present:
+        if (statusValue) {
+            const s = statusValue.toLowerCase();
+            if (s.includes('high') || s.includes('low') || s.includes('critical')) return 'text-red-600';
+        }
+        // Default (Normal)
+        return 'text-emerald-600';
     };
 
     // Clean value (remove H/L prefixes and units mixed in value)
@@ -450,32 +454,43 @@ const HealthMetricCard = ({ title, value, unit, status, date, icon, statusColor 
     };
 
     const finalValue = cleanValue(value);
-    const textColor = getValueTextColor(status);
+
+    // Logic: If there is a value but no status, treat as "Normal"
+    let displayStatus = status;
+    if (!displayStatus && finalValue) {
+        displayStatus = 'Normal';
+    }
+
+    const textColor = getValueTextColor(displayStatus);
 
     return (
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 transition-all duration-300 cursor-pointer group relative">
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2 text-slate-500">
-                    <span className="p-1.5 bg-slate-50 rounded-lg">{icon}</span>
-                    <span className="font-semibold text-sm">{title}</span>
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 transition-all duration-300 cursor-pointer group relative h-full flex flex-col justify-between min-h-[180px]">
+            <div>
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2 text-slate-500">
+                        <span className="p-1.5 bg-slate-50 rounded-lg">{icon}</span>
+                        <span className="font-semibold text-sm">{title}</span>
+                    </div>
+                    {finalValue && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-teal-50 text-teal-600 ring-1 ring-teal-200">
+                            Latest
+                        </span>
+                    )}
                 </div>
-                {value && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-teal-50 text-teal-600 ring-1 ring-teal-200">
-                        Latest
-                    </span>
+
+                <div className="flex items-baseline gap-1 mb-2">
+                    <span className={`text-3xl font-black ${textColor}`}>{finalValue || "-"}</span>
+                    {finalValue && <span className="text-sm text-slate-400 font-medium">{unit}</span>}
+                </div>
+
+                {displayStatus && (
+                    <div className="mb-2">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusBadgeColor(displayStatus)}`}>
+                            {displayStatus}
+                        </span>
+                    </div>
                 )}
             </div>
-            <div className="flex items-baseline gap-1 mb-2">
-                <span className={`text-3xl font-black ${textColor}`}>{finalValue || "-"}</span>
-                {finalValue && <span className="text-sm text-slate-400 font-medium">{unit}</span>}
-            </div>
-            {status && (
-                <div className="mb-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${getStatusBadgeColor(status)}`}>
-                        {status}
-                    </span>
-                </div>
-            )}
             <p className="text-[10px] text-slate-400">
                 {finalValue ? `Test date: ${formatDate(date)}` : 'No data available'}
             </p>

@@ -5,6 +5,7 @@ import { labReports, patients, healthParameters } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { LlamaParse } from "llama-parse";
 import { revalidatePath } from 'next/cache';
+import { uploadPdfToCloudinary, deletePdfFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary';
 
 interface TestResult {
     category: string;
@@ -260,10 +261,18 @@ export async function uploadLabReport(formData: FormData, userId: string) {
 
         const { reportDate, labName, patientName, doctorName, testResults, metadata } = extractionResult;
 
+        // Upload PDF to Cloudinary
+        let cloudinaryUrl: string;
+        try {
+            cloudinaryUrl = await uploadPdfToCloudinary(buffer, file.name, patient.id);
+            console.log('PDF uploaded to Cloudinary:', cloudinaryUrl);
+        } catch (cloudinaryError: any) {
+            console.error('Cloudinary upload failed:', cloudinaryError);
+            return { success: false, error: `Cloud storage upload failed: ${cloudinaryError.message}` };
+        }
+
         // Save to database
         try {
-            const base64File = buffer.toString('base64');
-
             const [report] = await db.insert(labReports).values({
                 patientId: patient.id,
                 fileName: file.name,
@@ -275,7 +284,7 @@ export async function uploadLabReport(formData: FormData, userId: string) {
                 rawText: "AI Extracted", // We don't need raw markdown in DB unless for debugging
                 fileSize: file.size,
                 pageCount: 1, // LlamaParse extraction handles pagination but returns unified text
-                fileData: base64File, // Store original PDF content
+                cloudinaryUrl, // Store Cloudinary URL instead of base64
             }).returning();
 
             // --- Extract and Store Key Health Parameters ---
@@ -288,6 +297,11 @@ export async function uploadLabReport(formData: FormData, userId: string) {
             };
         } catch (dbError) {
             console.error('Database insertion failed:', dbError);
+            // Clean up Cloudinary file if database insertion fails
+            if (cloudinaryUrl) {
+                const publicId = extractPublicIdFromUrl(cloudinaryUrl);
+                if (publicId) await deletePdfFromCloudinary(publicId);
+            }
             return { success: false, error: 'Failed to save report to database' };
         }
     } catch (error) {
@@ -320,7 +334,22 @@ export async function getLabReports(userId: string) {
 
 export async function deleteLabReport(reportId: string) {
     try {
+        // Get the report to find Cloudinary URL
+        const [report] = await db.select({
+            cloudinaryUrl: labReports.cloudinaryUrl
+        }).from(labReports).where(eq(labReports.id, reportId));
+
+        // Delete from database
         await db.delete(labReports).where(eq(labReports.id, reportId));
+
+        // Delete from Cloudinary if URL exists
+        if (report?.cloudinaryUrl) {
+            const publicId = extractPublicIdFromUrl(report.cloudinaryUrl);
+            if (publicId) {
+                await deletePdfFromCloudinary(publicId);
+            }
+        }
+
         return { success: true, message: 'Report deleted successfully' };
     } catch (error) {
         console.error('Delete error:', error);
@@ -354,15 +383,34 @@ export async function getReportPdf(reportId: string) {
         }
 
         const [report] = await db.select({
+            cloudinaryUrl: labReports.cloudinaryUrl,
             fileData: labReports.fileData,
             fileName: labReports.fileName
         }).from(labReports).where(eq(labReports.id, reportId));
 
-        if (!report || !report.fileData) {
-            return { success: false, error: 'Original file not found in database.' };
+        if (!report) {
+            return { success: false, error: 'Report not found' };
         }
 
-        return { success: true, fileData: report.fileData, fileName: report.fileName };
+        // Prefer Cloudinary URL (new method)
+        if (report.cloudinaryUrl) {
+            return {
+                success: true,
+                cloudinaryUrl: report.cloudinaryUrl,
+                fileName: report.fileName
+            };
+        }
+
+        // Fallback to legacy base64 storage
+        if (report.fileData) {
+            return {
+                success: true,
+                fileData: report.fileData,
+                fileName: report.fileName
+            };
+        }
+
+        return { success: false, error: 'Original file not found in database or cloud storage.' };
     } catch (error) {
         console.error('Download error:', error);
         return { success: false, error: 'Failed to retrieve file' };

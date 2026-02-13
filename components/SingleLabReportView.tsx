@@ -61,29 +61,51 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
             setDownloading(true);
             const result = await getReportPdf(report.id);
 
-            if (result.success && result.fileData) {
-                let base64Data = result.fileData as string;
-                if (base64Data.startsWith('data:application/pdf;base64,')) {
-                    base64Data = base64Data.split(',')[1];
-                }
-                base64Data = base64Data.replace(/\s/g, '');
+            if (result.success) {
+                // Handle Cloudinary URL (new method)
+                if (result.cloudinaryUrl) {
+                    // Fetch the PDF from Cloudinary
+                    const response = await fetch(result.cloudinaryUrl);
+                    const blob = await response.blob();
 
-                const byteCharacters = atob(base64Data);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = report.fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
                 }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], { type: 'application/pdf' });
-                const url = window.URL.createObjectURL(blob);
+                // Handle legacy base64 data
+                else if (result.fileData) {
+                    let base64Data = result.fileData as string;
+                    if (base64Data.startsWith('data:application/pdf;base64,')) {
+                        base64Data = base64Data.split(',')[1];
+                    }
+                    base64Data = base64Data.replace(/\s/g, '');
 
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = report.fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
+                    const byteCharacters = atob(base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = report.fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }
+                else {
+                    alert('Failed to download report. File not found.');
+                }
             } else {
                 alert('Failed to download report. Please try again.');
             }

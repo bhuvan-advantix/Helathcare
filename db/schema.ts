@@ -148,7 +148,8 @@ export const labReports = sqliteTable('lab_reports', {
     // File Info
     fileSize: integer('file_size'), // in bytes
     pageCount: integer('page_count'),
-    fileData: text('file_data'), // Base64 encoded file content
+    fileData: text('file_data'), // Base64 encoded file content (legacy - being phased out)
+    cloudinaryUrl: text('cloudinary_url'), // Cloudinary URL for PDF storage
 
     // Timestamps
     uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

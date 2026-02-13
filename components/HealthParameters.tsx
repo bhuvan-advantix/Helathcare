@@ -133,6 +133,31 @@ export default function HealthParameters({ history, analyses }: { history: any[]
         return cleaned;
     };
 
+    // --- Empty State Check ---
+    if (!history || history.length === 0) {
+        return (
+            <div className="max-w-5xl mx-auto px-4 py-12 sm:py-20 flex flex-col items-center justify-center text-center space-y-6">
+                <div className="relative">
+                    <div className="w-20 h-20 bg-teal-50 rounded-full flex items-center justify-center animate-pulse">
+                        <Activity className="w-10 h-10 text-teal-500" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <div className="w-2 h-2 bg-teal-500 rounded-full animate-ping" />
+                    </div>
+                </div>
+
+                <div className="space-y-2 max-w-lg">
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+                        No Health Parameters Yet
+                    </h2>
+                    <p className="text-sm sm:text-base text-slate-500 leading-relaxed">
+                        We haven't found any health metrics to track. Upload your first lab report to automatically extract and visualize key parameters like <span className="font-semibold text-teal-600">Blood Glucose</span>, <span className="font-semibold text-teal-600">Cholesterol</span>, and <span className="font-semibold text-teal-600">Blood Pressure</span>.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
             {/* Page Heading */}
@@ -421,23 +446,47 @@ export default function HealthParameters({ history, analyses }: { history: any[]
                                     </button>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                                    {group.records.map((record: any, idx: number) => (
-                                        <div key={idx} className="bg-slate-50 rounded-lg sm:rounded-xl p-2 sm:p-3">
-                                            <div className="flex items-center gap-1.5 mb-1 text-slate-500 text-[10px] sm:text-xs font-medium">
-                                                {getParamIcon(record.parameterName)}
-                                                <span className="truncate">{record.parameterName}</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-stretch">
+                                    {group.records.map((record: any, idx: number) => {
+                                        // Infer unit if missing
+                                        const getUnit = (rec: any) => {
+                                            if (rec.unit && rec.unit.trim() !== '') return rec.unit;
+                                            const name = rec.parameterName?.toLowerCase() || '';
+                                            if (name.includes('pressure')) return 'mmHg';
+                                            if (name.includes('glucose') || name.includes('cholesterol')) return 'mg/dL';
+                                            if (name.includes('hba1c')) return '%';
+                                            return '';
+                                        };
+                                        const unit = getUnit(record);
+                                        // Normalize status: default to 'Normal' if missing and value exists
+                                        let statusValue = record.status?.toLowerCase() || '';
+                                        if (!statusValue && record.value) {
+                                            statusValue = 'normal';
+                                        }
+
+                                        const isAbnormal = statusValue.includes('high') || statusValue.includes('low') || statusValue.includes('critical');
+                                        // If it's not abnormal and we have a status (which we forced), it's green.
+
+                                        return (
+                                            <div key={idx} className="bg-slate-50 rounded-lg sm:rounded-xl p-3 h-full flex flex-col justify-between hover:bg-slate-100 transition-colors">
+                                                <div className="flex items-center gap-1.5 mb-2 text-slate-500 text-[10px] sm:text-xs font-medium">
+                                                    {getParamIcon(record.parameterName)}
+                                                    <span className="truncate" title={record.parameterName}>{record.parameterName}</span>
+                                                </div>
+                                                <div className="flex items-baseline gap-1 mt-auto">
+                                                    <span className={`text-base sm:text-lg font-black ${isAbnormal ? 'text-red-600' : 'text-emerald-600'
+                                                        }`}>
+                                                        {cleanValue(record.value)}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium">{unit}</span>
+                                                </div>
+                                                {/* Status Badge - Always Show Since We Default to Normal */}
+                                                <div className={`mt-1 text-[9px] font-bold uppercase tracking-wider ${isAbnormal ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                    {statusValue}
+                                                </div>
                                             </div>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className={`text-base sm:text-lg font-black ${record.status?.toLowerCase().includes('high') || record.status?.toLowerCase().includes('low') ? 'text-red-600' :
-                                                    (record.status?.toLowerCase().includes('normal') ? 'text-emerald-600' : 'text-slate-900')
-                                                    }`}>
-                                                    {cleanValue(record.value)}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400">{record.unit}</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 {/* AI Analysis button - only show on mobile, after parameters */}
