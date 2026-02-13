@@ -215,3 +215,22 @@ export const supportTickets = sqliteTable('support_tickets', {
     // Optional: Link to user if they're logged in
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
 });
+
+// Timeline Events Table
+export const timelineEvents = sqliteTable('timeline_events', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'), // Optional details
+    eventDate: text('event_date').notNull(), // YYYY-MM-DD or ISO string
+    eventType: text('event_type').notNull(), // 'appointment' | 'test' | 'medication' | 'general' | 'surgery'
+    status: text('status').default('pending'), // 'pending' | 'completed' | 'cancelled'
+
+    // Optional Links
+    reportId: text('report_id').references(() => labReports.id, { onDelete: 'set null' }), // Link to a lab report
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }), // Link to a doctor
+
+    createdBy: text('created_by').default('patient'), // 'patient' | 'doctor' | 'system'
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
