@@ -219,8 +219,77 @@ async function extractAndStoreHealthParameters(
     }
 }
 
+// --- NEW: Process Report Uploaded Client-Side (Bypasses Vercel Size Limit) ---
+export async function processUploadedReport(cloudinaryUrl: string, userId: string, originalFileName: string, fileSize: number) {
+    console.log('Processing pre-uploaded report:', cloudinaryUrl);
+
+    try {
+        // 1. Download the file from Cloudinary to a buffer
+        const response = await fetch(cloudinaryUrl);
+        if (!response.ok) throw new Error(`Failed to download from Cloudinary: ${response.statusText}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // 2. Get patient record
+        const patient = await db.query.patients.findFirst({
+            where: eq(patients.userId, userId),
+        });
+
+        if (!patient) {
+            return { success: false, error: 'Patient profile not found' };
+        }
+
+        // 3. Run AI Extraction
+        let extractionResult;
+        try {
+            extractionResult = await extractLabDataWithAI(buffer);
+        } catch (aiError: any) {
+            console.error('AI Processing Failed:', aiError);
+            return { success: false, error: `AI Processing Failed: ${aiError.message}` };
+        }
+
+        const { reportDate, labName, patientName, doctorName, testResults, metadata } = extractionResult;
+
+        // 4. Save to database
+        try {
+            const [report] = await db.insert(labReports).values({
+                patientId: patient.id,
+                fileName: originalFileName,
+                reportDate: reportDate || new Date().toISOString(),
+                labName,
+                patientName,
+                doctorName,
+                extractedData: { results: testResults, metadata } as any,
+                rawText: "AI Extracted",
+                fileSize: fileSize,
+                pageCount: 1,
+                cloudinaryUrl, // Already uploaded
+            }).returning();
+
+            // 5. Extract Health Parameters
+            await extractAndStoreHealthParameters(patient.id, report.id, testResults, reportDate || new Date().toISOString());
+
+            return {
+                success: true,
+                reportId: report.id,
+                message: 'Lab report processed successfully',
+            };
+        } catch (dbError) {
+            console.error('Database insertion failed:', dbError);
+            // Clean up Cloudinary file if database insertion fails
+            const publicId = extractPublicIdFromUrl(cloudinaryUrl);
+            if (publicId) await deletePdfFromCloudinary(publicId);
+            return { success: false, error: 'Failed to save report to database' };
+        }
+    } catch (error) {
+        console.error('Unexpected error in processUploadedReport:', error);
+        return { success: false, error: 'Processing error: ' + (error instanceof Error ? error.message : String(error)) };
+    }
+}
+
 export async function uploadLabReport(formData: FormData, userId: string) {
     console.log('Starting uploadLabReport for user:', userId);
+    // ... rest of function ...
 
     try {
         const file = formData.get('file') as File;

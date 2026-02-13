@@ -6,7 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { addMedication, stopMedication, restartMedication } from '@/app/actions/medications';
-import { uploadLabReport, getLabReports, deleteLabReport } from '@/app/actions/labReports';
+import { uploadLabReport, getLabReports, deleteLabReport, processUploadedReport } from '@/app/actions/labReports';
+import { getCloudinarySignature } from '@/app/actions/cloudinarySignature';
 import confetti from 'canvas-confetti';
 import { useRouter } from 'next/navigation';
 import { signOut } from "next-auth/react";
@@ -1157,26 +1158,58 @@ export default function PatientDashboard({ data }: DashboardProps) {
         const file = event.target.files?.[0];
         if (!file) return;
 
+        // Basic validation
+        if (file.type !== 'application/pdf') {
+            setUploadError('Only PDF files are supported');
+            // Reset input
+            event.target.value = '';
+            return;
+        }
+
         setIsUploading(true);
         setUploadError('');
 
         try {
+            // 1. Get Signature for Secure Client-Side Upload
+            const { signature, timestamp, cloudName, apiKey } = await getCloudinarySignature();
+            if (!cloudName || !apiKey) throw new Error("Cloud config missing on server");
+
+            // 2. Upload directly to Cloudinary (Bypassing Vercel Limit)
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('api_key', apiKey!);
+            formData.append('timestamp', timestamp.toString());
+            formData.append('signature', signature);
+            formData.append('folder', 'lab_reports');
 
-            const result = await uploadLabReport(formData, user.id);
+            // Use 'raw' resource type for PDFs if 'auto' fails, but 'auto' usually works. 
+            // However, specialized PDFs sometimes need 'image' or 'raw'. Cloudinary 'auto' is safest.
+            const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'Cloudinary upload failed');
+            }
+
+            const data = await response.json();
+            const secureUrl = data.secure_url;
+
+            // 3. Process on Server (AI Extraction & DB Save)
+            const result = await processUploadedReport(secureUrl, user.id, file.name, file.size);
 
             if (result.success) {
-                // Redirect to lab reports page
                 router.push(`/labreports/${result.reportId}`);
             } else {
-                setUploadError(result.error || 'Upload failed');
+                setUploadError(result.error || 'Processing failed');
             }
-        } catch (error) {
-            setUploadError('Failed to upload file');
+        } catch (error: any) {
+            console.error('Upload Process Error:', error);
+            setUploadError(error.message || 'Failed to upload/process file');
         } finally {
             setIsUploading(false);
-            // Reset file input
             event.target.value = '';
         }
     };
