@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { ChevronRight, Shield, Lock, FileText, AlertCircle, Eye, Database, UserCheck } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import DashboardNavbar from '@/components/DashboardNavbar';
+import DoctorNavbar from '@/components/doctor/DoctorNavbar';
 
 export default function Privacy() {
     const { data: session, status } = useSession();
@@ -78,7 +79,9 @@ export default function Privacy() {
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
             {/* Conditional Navbar */}
             {session ? (
-                <DashboardNavbar user={session.user} />
+                session.user.role === 'doctor'
+                    ? <DoctorNavbar user={session.user} />
+                    : <DashboardNavbar user={session.user} />
             ) : (
                 <nav className={`fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">

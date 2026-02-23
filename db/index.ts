@@ -66,3 +66,23 @@ export async function ensureLabReportsSchema() {
 
     labReportsSchemaEnsured = true;
 }
+
+// ── Medications schema guard ──────────────────────────────────────────────────
+let medicationsSchemaEnsured = false;
+
+export async function ensureMedicationsSchema() {
+    if (medicationsSchemaEnsured) return;
+
+    const tableInfo = await client.execute("PRAGMA table_info('medications')");
+    const existingColumns = new Set(
+        tableInfo.rows.map((row) => String((row as Record<string, unknown>).name))
+    );
+
+    if (!existingColumns.has('duration_days')) {
+        await client.execute(
+            `ALTER TABLE medications ADD COLUMN duration_days INTEGER`
+        );
+    }
+
+    medicationsSchemaEnsured = true;
+}

@@ -1,8 +1,10 @@
 'use server';
 
 import { db } from '@/db';
-import { labReports, patients, healthParameters } from '@/db/schema';
+import { labReports, patients, healthParameters, doctors, timelineEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { LlamaParse } from "llama-parse";
 import { revalidatePath } from 'next/cache';
 import { uploadPdfToCloudinary, deletePdfFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary';
@@ -903,5 +905,135 @@ export async function generateLabAnalysis(labReportId: string) {
             error: `Analysis generation failed: ${errorMessage}`,
             analysis: `<div class="p-4 bg-red-50 text-red-600 rounded-xl">Unable to generate analysis. Error: ${errorMessage}</div>`
         };
+    }
+}
+
+/**
+ * Process a lab report uploaded by a DOCTOR on behalf of a patient.
+ * The cloudinaryUrl has already been uploaded client-side. This saves to DB under the patient's records.
+ */
+export async function processReportUploadedByDoctor(
+    cloudinaryUrl: string,
+    patientId: string,
+    originalFileName: string,
+    fileSize: number,
+    hospitalName?: string,
+    doctorNote?: string
+) {
+    try {
+        // Verify patient exists
+        const patient = await db.query.patients.findFirst({
+            where: eq(patients.id, patientId),
+        });
+
+        if (!patient) {
+            return { success: false, error: 'Patient not found' };
+        }
+
+        // Extract public_id and fetch file from Cloudinary
+        const publicId = extractPublicIdFromUrl(cloudinaryUrl);
+        if (!publicId) {
+            return { success: false, error: 'Could not extract public ID from Cloudinary URL' };
+        }
+
+        let buffer: Buffer;
+        try {
+            const response = await fetch(cloudinaryUrl);
+            if (!response.ok) {
+                throw new Error(`Cannot access uploaded file. Status: ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+        } catch (fetchError: any) {
+            return { success: false, error: `Failed to fetch uploaded file: ${fetchError.message}` };
+        }
+
+        // Run AI extraction on the PDF
+        let extractionResult;
+        try {
+            extractionResult = await extractLabDataWithAI(buffer);
+        } catch (aiError: any) {
+            // If AI fails, still save the report with basic info
+            console.warn('AI extraction failed, saving basic record:', aiError.message);
+            extractionResult = {
+                reportDate: new Date().toISOString(),
+                labName: hospitalName || null,
+                patientName: null,
+                doctorName: null,
+                testResults: [],
+                metadata: {}
+            };
+        }
+
+        const {
+            reportDate,
+            labName: extractedLabName,
+            patientName,
+            doctorName,
+            testResults,
+            metadata
+        } = extractionResult;
+
+        // Doctor's clinic name ALWAYS takes priority — use AI-extracted name only as fallback
+        const finalLabName = hospitalName || extractedLabName || null;
+        const finalReportDate = reportDate || new Date().toISOString();
+
+        // Save to database under patient's records
+        const [report] = await db.insert(labReports).values({
+            patientId: patient.id,
+            fileName: originalFileName,
+            reportDate: finalReportDate,
+            labName: finalLabName,
+            patientName,
+            doctorName,
+            extractedData: { results: testResults, metadata } as any,
+            rawText: 'AI Extracted - Doctor Upload',
+            fileSize: fileSize,
+            pageCount: 1,
+            cloudinaryUrl,
+        }).returning();
+
+        // Extract health parameters if any were found
+        if (testResults && testResults.length > 0) {
+            await extractAndStoreHealthParameters(patient.id, report.id, testResults, finalReportDate);
+        }
+
+        revalidatePath('/dashboard');
+        revalidatePath(`/doctor/patient/${patientId}`);
+        revalidatePath('/timeline');
+
+        // If doctor added a note for this report, save it as a patient timeline event
+        if (doctorNote && doctorNote.trim()) {
+            try {
+                const sess = await getServerSession(authOptions);
+                const doctorRow = sess?.user?.id
+                    ? await db.select().from(doctors).where(eq(doctors.userId, sess.user.id)).limit(1).then(r => r[0])
+                    : null;
+
+                await db.insert(timelineEvents).values({
+                    userId: patient.userId,
+                    title: `Lab Report Note — ${originalFileName}`,
+                    description: doctorNote.trim(),
+                    eventDate: new Date().toISOString().split('T')[0],
+                    eventType: 'test',
+                    status: 'completed',
+                    doctorId: doctorRow?.id || null,
+                    createdBy: 'doctor',
+                } as any);
+            } catch (noteErr) {
+                console.warn('Failed to save lab note:', noteErr);
+            }
+        }
+
+        return {
+            success: true,
+            reportId: report.id,
+            labName: finalLabName,
+            reportDate: finalReportDate,
+            message: 'Lab report uploaded to patient records successfully',
+        };
+    } catch (error) {
+        console.error('Doctor upload error:', error);
+        return { success: false, error: 'Failed to process report: ' + (error instanceof Error ? error.message : String(error)) };
     }
 }

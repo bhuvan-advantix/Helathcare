@@ -60,6 +60,46 @@ export async function updateProfile(userId: string, data: any) {
                 .where(eq(patients.userId, userId));
         }
 
+        // Update Doctor table fields
+        const doctorUpdates: any = {};
+        const doctorFieldMap: Record<string, keyof typeof doctors.$inferInsert> = {
+            dob: 'dateOfBirth',
+            age: 'age',
+            gender: 'gender',
+            phone: 'phoneNumber',
+            address: 'address',
+            city: 'city',
+            specialization: 'specialization',
+            clinicName: 'clinicName',
+            licenseNumber: 'licenseNumber',
+            experienceYears: 'experienceYears',
+            degree: 'degree',
+            hospitalTiming: 'hospitalTiming',
+            workingDays: 'workingDays',
+            bio: 'bio',
+            emergencyContactName: 'emergencyContactName',
+            emergencyContactPhone: 'emergencyContactPhone',
+            guardianName: 'guardianName',
+            guardianRelation: 'guardianRelation',
+            maritalStatus: 'maritalStatus'
+        };
+
+        for (const [dataKey, dbKey] of Object.entries(doctorFieldMap)) {
+            if (data[dataKey] !== undefined) {
+                if ((dbKey === 'age' || dbKey === 'experienceYears') && data[dataKey]) {
+                    doctorUpdates[dbKey] = parseInt(data[dataKey] as string);
+                } else {
+                    doctorUpdates[dbKey] = data[dataKey];
+                }
+            }
+        }
+
+        if (Object.keys(doctorUpdates).length > 0) {
+            await db.update(doctors)
+                .set(doctorUpdates)
+                .where(eq(doctors.userId, userId));
+        }
+
         revalidatePath('/dashboard');
         revalidatePath('/profile');
         return { success: true };

@@ -26,21 +26,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { generateHealthParametersAnalysis } from '@/app/actions/healthParameters';
 import { useRouter } from 'next/navigation';
 
+// Parameters to EXCLUDE from all views (not clinically tracked)
+const EXCLUDED_PARAMS = ['weight', 'height'];
+// The 4 key parameters to display
+const KEY_PARAMS = ['glucose', 'cholesterol', 'pressure', 'hba1c'];
+
+const isExcluded = (paramName: string) =>
+    EXCLUDED_PARAMS.some(ex => paramName.toLowerCase().includes(ex));
+
 export default function HealthParameters({ history, analyses }: { history: any[], analyses: Record<string, string> }) {
     const [analyzingIds, setAnalyzingIds] = useState<Record<string, boolean>>({});
     const [localAnalyses, setLocalAnalyses] = useState<Record<string, string>>({});
     const [visibleAnalyses, setVisibleAnalyses] = useState<Record<string, boolean>>({});
     const router = useRouter();
 
-    // Group history by date
+    // Filter out Weight and Height globally
+    const filteredHistory = useMemo(() =>
+        history.filter(r => !isExcluded(r.parameterName || '')),
+        [history]);
+
+    // Group history by CALENDAR DATE (YYYY-MM-DD) so same-day tests appear in one card
     const groupedHistory = useMemo(() => {
         const groups: Record<string, any[]> = {};
-        history.forEach(record => {
-            const dateStr = record.testDate;
-            if (!groups[dateStr]) {
-                groups[dateStr] = [];
-            }
-            groups[dateStr].push(record);
+        filteredHistory.forEach(record => {
+            // Normalise to just YYYY-MM-DD, stripping any time component
+            const calendarDate = (record.testDate || '').toString().slice(0, 10);
+            if (!groups[calendarDate]) groups[calendarDate] = [];
+            groups[calendarDate].push(record);
         });
 
         return Object.entries(groups)
@@ -54,12 +66,12 @@ export default function HealthParameters({ history, analyses }: { history: any[]
                     date,
                     fullDate: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
                     shortDate: `${day} ${month} '${year}`,
-                    records: records,
-                    labReportId: records[0]?.labReportId // Assume all records in group share labReportId
+                    records,
+                    labReportId: records[0]?.labReportId
                 };
             })
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [history]);
+    }, [filteredHistory]);
 
     // Prepare Chart Data
     const chartData = useMemo(() => {
@@ -134,7 +146,7 @@ export default function HealthParameters({ history, analyses }: { history: any[]
     };
 
     // --- Empty State Check ---
-    if (!history || history.length === 0) {
+    if (!filteredHistory || filteredHistory.length === 0) {
         return (
             <div className="max-w-5xl mx-auto px-4 py-12 sm:py-20 flex flex-col items-center justify-center text-center space-y-6">
                 <div className="relative">
@@ -404,6 +416,13 @@ export default function HealthParameters({ history, analyses }: { history: any[]
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 px-1">Detailed Reports</h3>
 
                 {groupedHistory.map((group, groupIdx) => {
+                    // Deduplicate records in this group by parameterName (keep last/latest per name)
+                    const dedupMap = new Map<string, any>();
+                    group.records.forEach((r: any) => {
+                        dedupMap.set(r.parameterName?.toLowerCase(), r);
+                    });
+                    const uniqueRecords = Array.from(dedupMap.values());
+
                     // Use local state for analysis (keyed by date)
                     const analysis = localAnalyses[group.date];
                     const isAnalyzing = analyzingIds[group.date] || false;
@@ -425,7 +444,7 @@ export default function HealthParameters({ history, analyses }: { history: any[]
                                         </div>
                                         <div>
                                             <h4 className="text-sm sm:text-base font-bold text-slate-900">{group.fullDate}</h4>
-                                            <p className="text-xs sm:text-sm text-slate-500">{group.records.length} Parameters Tested</p>
+                                            <p className="text-xs sm:text-sm text-slate-500">{uniqueRecords.length} Parameter{uniqueRecords.length !== 1 ? 's' : ''} Tested</p>
                                         </div>
                                     </div>
                                     {/* AI Analysis button - only show on desktop */}
@@ -447,7 +466,7 @@ export default function HealthParameters({ history, analyses }: { history: any[]
                                 </div>
 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-stretch">
-                                    {group.records.map((record: any, idx: number) => {
+                                    {uniqueRecords.map((record: any, idx: number) => {
                                         // Infer unit if missing
                                         const getUnit = (rec: any) => {
                                             if (rec.unit && rec.unit.trim() !== '') return rec.unit;

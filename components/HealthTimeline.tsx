@@ -35,6 +35,7 @@ type TimelineEvent = {
     status: string | null;
     reportId?: string | null;
     isReport?: boolean;
+    createdBy?: string | null;
 };
 
 export default function HealthTimeline({ user }: { user: any }) {
@@ -308,6 +309,48 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
         }
     };
 
+    /**
+     * Parse the description into structured sections.
+     * Keys: Hospital, Diagnosis, Prescribed, Doctor's Advice
+     */
+    const parseDescription = (desc: string | null) => {
+        if (!desc) return null;
+        const KEYS = ["Hospital", "Diagnosis", "Prescribed", "Doctor's Advice"];
+        const regex = new RegExp(`(${KEYS.map(k => k.replace(/'/g, "\\'")).join('|')}):`, 'g');
+        const parts = desc.split(regex).map(s => s.trim()).filter(Boolean);
+        if (parts.length <= 1) {
+            return <span>{desc}</span>;
+        }
+        const sections: { label: string; value: string }[] = [];
+        for (let i = 0; i < parts.length; i++) {
+            if (KEYS.includes(parts[i]) && parts[i + 1]) {
+                sections.push({ label: parts[i], value: parts[i + 1].replace(/\.\s*$/, '') });
+                i++;
+            }
+        }
+        if (sections.length === 0) return <span>{desc}</span>;
+
+        const labelColors: Record<string, string> = {
+            'Hospital': 'text-teal-700',
+            'Diagnosis': 'text-slate-800',
+            'Prescribed': 'text-purple-700',
+            "Doctor's Advice": 'text-sky-700',
+        };
+
+        return (
+            <div className="space-y-1.5">
+                {sections.map(s => (
+                    <p key={s.label} className="text-xs sm:text-sm">
+                        <span className={`font-black ${labelColors[s.label] || 'text-slate-800'}`}>{s.label}: </span>
+                        <span className="text-slate-600">{s.value}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    };
+
+    const hasStructuredContent = event.description && /Hospital:|Diagnosis:|Prescribed:|Doctor's Advice:/.test(event.description);
+
     return (
         <div className="relative pl-9 sm:pl-12 group">
             {/* Dot on Line */}
@@ -350,14 +393,18 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
                     </span>
                 </div>
 
-                <div className="pl-[3rem] sm:pl-16 text-slate-500 font-medium text-xs sm:text-sm leading-relaxed mb-2 sm:mb-4">
-                    {event.description || "No description provided."}
-                </div>
+                {/* Description — hidden for structured content, always shown for others */}
+                {!hasStructuredContent && (
+                    <div className="pl-[3rem] sm:pl-16 text-slate-500 font-medium text-xs sm:text-sm leading-relaxed mb-2 sm:mb-4">
+                        {event.description || "No description provided."}
+                    </div>
+                )}
 
+                {/* Action row */}
                 <div className="pl-[3rem] sm:pl-16 flex items-center gap-4">
                     {isReport ? (
                         <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-slate-50 text-slate-600 font-bold text-[0.7rem] sm:text-sm rounded-lg sm:rounded-xl transition-all border border-slate-100 group-hover:bg-teal-600 group-hover:text-white group-hover:border-teal-600 shadow-sm">
-                            View Analysis
+                            View Report
                             <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" />
                         </div>
                     ) : (
@@ -366,14 +413,15 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
                                 e.stopPropagation();
                                 setIsExpanded(!isExpanded);
                             }}
-                            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-400 hover:text-teal-600 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-lg"
                         >
-                            {isExpanded ? "Hide Details" : "View Details"}
+                            {isExpanded ? "Hide Details" : "Show Details"}
                             <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                     )}
                 </div>
 
+                {/* Expanded section */}
                 <AnimatePresence>
                     {isExpanded && !isReport && (
                         <motion.div
@@ -382,8 +430,11 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden pl-[3rem] sm:pl-16"
                         >
-                            <div className="pt-4 mt-4 border-t border-slate-50 text-sm text-slate-600 bg-slate-50/50 -mx-6 px-6 pb-2 rounded-b-2xl">
-                                <p className="mb-2"><span className="font-bold text-slate-900">Notes:</span> {event.description || "No additional notes."}</p>
+                            <div className="pt-3 mt-3 border-t border-slate-100 pb-1">
+                                {hasStructuredContent
+                                    ? parseDescription(event.description)
+                                    : <p className="text-sm text-slate-600 font-medium leading-relaxed">{event.description || "No additional notes."}</p>
+                                }
                             </div>
                         </motion.div>
                     )}

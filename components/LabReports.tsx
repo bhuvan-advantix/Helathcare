@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteLabReport, getReportPdf, analyzeTestResult } from '@/app/actions/labReports';
 import DashboardNavbar from '@/components/DashboardNavbar';
@@ -420,8 +420,8 @@ export default function LabReports({
                                                                                             const isLoading = loadingAnalysis[testKey];
 
                                                                                             return (
-                                                                                                <>
-                                                                                                    <tr key={testIdx} className={`transition-colors border-b last:border-0 ${isAbnormal ? 'bg-red-50/30' : 'hover:bg-slate-50/50'}`}>
+                                                                                                <React.Fragment key={testKey}>
+                                                                                                    <tr className={`transition-colors border-b last:border-0 ${isAbnormal ? 'bg-red-50/30' : 'hover:bg-slate-50/50'}`}>
                                                                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                                                                             <div className="flex flex-col">
                                                                                                                 <span className="text-sm font-semibold text-slate-700">{test.name}</span>
@@ -501,7 +501,7 @@ export default function LabReports({
                                                                                                             </td>
                                                                                                         </tr>
                                                                                                     )}
-                                                                                                </>
+                                                                                                </React.Fragment>
                                                                                             );
                                                                                         })}
                                                                                     </tbody>

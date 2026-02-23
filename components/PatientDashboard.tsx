@@ -132,16 +132,16 @@ function HealthCard({ user, patient }: HealthCardProps) {
         const uniqueNames = new Set<string>();
         const stoppedNames = new Set<string>();
 
-        // 1. Identify Stopped meds first to block them
+        // 1. Identify Stopped or Hidden meds first to block them
         patient?.medications?.forEach((m: any) => {
-            if (m.status === 'Stopped') {
+            if (m.status === 'Stopped' || m.status === 'Hidden') {
                 stoppedNames.add(m.name.toLowerCase());
             }
         });
 
         // 2. Add Active DB meds
         patient?.medications?.forEach((m: any) => {
-            if (m.status !== 'Stopped') {
+            if (m.status !== 'Stopped' && m.status !== 'Hidden') {
                 uniqueNames.add(m.name);
             }
         });
@@ -863,6 +863,15 @@ interface DashboardProps {
         user: any;
         patient: any;
         healthParameters?: Record<string, any>;
+        doctorNotes?: Array<{
+            id: string;
+            doctorName: string;
+            specialty: string;
+            date: string;
+            note: string;
+            doctorId?: string | null;
+            createdAt?: string | null;
+        }>;
     }
 }
 
@@ -1101,10 +1110,10 @@ const AddMedicationModal = ({ patientId, onClose, initialData }: { patientId: st
 };
 
 export default function PatientDashboard({ data }: DashboardProps) {
-    const { user, patient, healthParameters = {} } = data;
+    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [] } = data;
     const router = useRouter();
     const [currentView, setCurrentView] = useState('dashboard');
-    const [expandedNote, setExpandedNote] = useState<number | null>(null);
+    const [expandedNote, setExpandedNote] = useState<string | null>(null);
     const [showWelcome, setShowWelcome] = useState(false);
     const [showAddMedication, setShowAddMedication] = useState(false);
     const [editingMed, setEditingMed] = useState<any>(null);
@@ -1304,35 +1313,8 @@ export default function PatientDashboard({ data }: DashboardProps) {
         }
     }, []);
 
-    const doctorNotes = [
-        {
-            id: 1,
-            doctor: "Dr. Sarah Jenkins",
-            specialty: "General Physician",
-            date: "Yesterday",
-            note: "Patient shows good progress. BP is stable but needs to monitor sugar intake. Recommended follow-up in 2 weeks for routine checkup. Continue current medication plan.",
-            followUp: "24th Feb, 2026",
-            type: "Routine Check"
-        },
-        {
-            id: 2,
-            doctor: "Dr. Michael Chen",
-            specialty: "Dermatologist",
-            date: "Jan 15, 2026",
-            note: "Skin rash has significantly improved with the prescribed ointment. Discontinue use after 3 more days if symptoms clear completely.",
-            followUp: "None",
-            type: "Specialist"
-        },
-        {
-            id: 3,
-            doctor: "Dr. Emily White",
-            specialty: "Cardiologist",
-            date: "Jan 02, 2026",
-            note: "Heart rate monitoring shows normal rhythm. Keep up with the daily 30-min walks. Next ECG scheduled for next month.",
-            followUp: "2nd Mar, 2026",
-            type: "Follow-up"
-        }
-    ];
+    // Use real doctor notes from props (patient-visible timeline events from doctor)
+    const doctorNotes = propDoctorNotes;
 
     // Helper to parse comma separated values
     const parseList = (str: string | null) => {
@@ -1368,7 +1350,11 @@ export default function PatientDashboard({ data }: DashboardProps) {
             addedBy: 'Self' // Ensures Edit button appears
         }));
 
-    const displayMedications = [...uniqueDbMeds, ...formattedLegacyMeds];
+    // Sort: Active first, then Stopped — Hidden are excluded
+    const statusOrder: Record<string, number> = { Active: 0, Stopped: 1 };
+    const displayMedications = [...uniqueDbMeds, ...formattedLegacyMeds]
+        .filter((m: any) => m.status !== 'Hidden')
+        .sort((a: any, b: any) => (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2));
     const conditions = parseList(patient?.chronicConditions);
 
     return (
@@ -1490,59 +1476,77 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             >
                                 <h2 className="text-xl font-bold text-slate-900 mb-6">Doctor Notes</h2>
                                 <div className="flex-grow flex flex-col gap-3 h-[254px] overflow-y-scroll pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                    {doctorNotes.map((note) => (
+                                    {doctorNotes.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                            <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-3">
+                                                <Stethoscope className="w-7 h-7 text-slate-300" />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-400">No doctor notes yet</p>
+                                            <p className="text-xs text-slate-300 mt-1">Notes will appear here after a consultation</p>
+                                        </div>
+                                    ) : doctorNotes.map((note) => (
                                         <div
                                             key={note.id}
                                             onClick={() => setExpandedNote(expandedNote === note.id ? null : note.id)}
-                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer group ${expandedNote === note.id
+                                            className={`p-3 rounded-2xl border transition-all cursor-pointer ${expandedNote === note.id
                                                 ? 'bg-teal-50/50 border-teal-100 shadow-sm'
                                                 : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                                                 }`}
                                         >
-                                            <div className="flex items-start gap-3">
-                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100 ${expandedNote === note.id ? 'shadow-sm ring-2 ring-teal-50' : ''
-                                                    }`}>
+                                            <div className="flex items-center gap-2.5">
+                                                {/* Compact avatar */}
+                                                <div className={`w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border border-slate-100 ${expandedNote === note.id ? 'ring-2 ring-teal-100' : ''}`}>
                                                     <Image
                                                         src="/doctor.png"
                                                         alt="Doctor"
-                                                        width={48}
-                                                        height={48}
+                                                        width={36}
+                                                        height={36}
                                                         className="w-full h-full object-cover"
                                                     />
                                                 </div>
-                                                <div className="flex-grow min-w-0">
-                                                    <div className="flex justify-between items-center">
-                                                        <div className="flex-grow min-w-0 pr-2">
-                                                            <h3 className={`text-base font-extrabold ${expandedNote === note.id ? 'text-teal-900' : 'text-slate-900'}`}>{note.doctor}</h3>
-                                                            <p className="text-sm font-semibold text-slate-500">{note.specialty}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                                            <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 whitespace-nowrap">{note.date}</span>
-                                                            <div className={`transition-transform duration-300 transform ${expandedNote === note.id ? 'rotate-180' : ''}`}>
-                                                                <ChevronDown className="w-5 h-5 text-slate-400 font-bold" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {expandedNote === note.id && (
-                                                        <div className="mt-3 pt-3 border-t border-teal-100/50">
-                                                            <p className="text-sm font-medium text-slate-700 leading-relaxed mb-3">
-                                                                {note.note}
-                                                            </p>
-                                                            <div className="flex gap-2">
-                                                                {note.followUp !== "None" && (
-                                                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-100/50 px-2.5 py-1.5 rounded-md">
-                                                                        <Clock className="w-3.5 h-3.5" />
-                                                                        Follow-up: {note.followUp}
-                                                                    </span>
-                                                                )}
-                                                                <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded-md">
-                                                                    {note.type}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    )}
+
+                                                {/* Name + specialty pill */}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-[13px] font-black leading-tight truncate ${expandedNote === note.id ? 'text-teal-900' : 'text-slate-900'}`}>
+                                                        {note.doctorName}
+                                                    </p>
+                                                    <span className="inline-block mt-0.5 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded-md leading-none">
+                                                        {note.specialty}
+                                                    </span>
+                                                </div>
+
+                                                {/* Date + chevron */}
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{note.date}</span>
+                                                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-300 ${expandedNote === note.id ? 'rotate-180' : ''}`} />
                                                 </div>
                                             </div>
+
+                                            {/* Expanded note */}
+                                            {expandedNote === note.id && (() => {
+                                                const KEYS = ["Diagnosis", "Prescribed", "Doctor's Advice"];
+                                                const regex = new RegExp(`(${KEYS.join('|')}):`, 'g');
+                                                const parts = (note.note || '').split(regex).map((s: string) => s.trim()).filter(Boolean);
+                                                const sections: { label: string; value: string }[] = [];
+                                                for (let i = 0; i < parts.length; i++) {
+                                                    if (KEYS.includes(parts[i]) && parts[i + 1]) {
+                                                        sections.push({ label: parts[i], value: parts[i + 1].replace(/\.\s*$/, '') });
+                                                        i++;
+                                                    }
+                                                }
+                                                return (
+                                                    <div className="mt-2.5 pt-2.5 border-t border-teal-100/60 space-y-1">
+                                                        {sections.length > 0 ? sections.map(s => (
+                                                            <p key={s.label} className="text-xs leading-relaxed text-slate-700">
+                                                                <span className="font-black text-slate-900">{s.label}: </span>
+                                                                <span className="font-medium">{s.value}</span>
+                                                            </p>
+                                                        )) : (
+                                                            <p className="text-xs font-medium text-slate-700 leading-relaxed">{note.note}</p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
                                 </div>
@@ -1581,17 +1585,42 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {med.dosage && (
+                                                        {med.dosage && med.dosage !== '-' && (
                                                             <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 uppercase tracking-wide">
                                                                 {med.dosage}
                                                             </span>
                                                         )}
-                                                        {med.frequency && (
+                                                        {med.frequency && med.frequency !== '-' && (
                                                             <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100 uppercase tracking-wide flex items-center gap-1">
                                                                 <Clock className="w-3 h-3" />
                                                                 {med.frequency}
                                                             </span>
                                                         )}
+                                                        {/* Duration badge */}
+                                                        {med.durationDays && (() => {
+                                                            if (med.status === 'Active' && med.startDate) {
+                                                                const start = new Date(med.startDate);
+                                                                start.setHours(0, 0, 0, 0);
+                                                                const end = new Date(start);
+                                                                end.setDate(start.getDate() + med.durationDays);
+                                                                const today = new Date();
+                                                                today.setHours(0, 0, 0, 0);
+                                                                const remaining = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                                                return (
+                                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border uppercase tracking-wide flex items-center gap-1 ${remaining <= 2
+                                                                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                        }`}>
+                                                                        ⏱ {remaining > 0 ? `${remaining}d left of ${med.durationDays}d` : 'Ending today'}
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 uppercase tracking-wide">
+                                                                    {med.durationDays}d course
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
 
@@ -1611,18 +1640,21 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                                                     <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">Started: {med.startDate}</span>
                                                                 </div>
                                                             )}
-                                                            {med.addedBy && (
-                                                                <span className="sm:hidden text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                                                    {med.addedBy === 'Self' ? 'Self Added' : `By ${med.addedBy}`}
-                                                                </span>
-                                                            )}
+
                                                         </div>
 
                                                         {med.addedBy && (
                                                             <div className="flex items-center gap-3 w-full sm:w-auto sm:justify-end">
-                                                                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                                                    {med.addedBy === 'Self' ? 'Self Added' : `By ${med.addedBy}`}
-                                                                </span>
+                                                                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 sm:text-right mt-2 sm:mt-0 items-start sm:items-end">
+                                                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                                        {med.addedBy === 'Self' ? 'Self Added' : `Prescribed / Edited By ${med.addedBy}`}
+                                                                    </span>
+                                                                    {(med.createdAt || med.updatedAt) && med.addedBy !== 'Self' && (
+                                                                        <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
+                                                                            • {new Date(med.updatedAt || med.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
 
                                                                 {med.addedBy === 'Self' && (
                                                                     <>

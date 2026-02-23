@@ -1,11 +1,12 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjust path if needed
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { db, ensureLabReportsSchema } from "@/db";
-import { users, patients, medications, labReports } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { db, ensureLabReportsSchema, ensureMedicationsSchema } from "@/db";
+import { users, patients, medications, labReports, timelineEvents, doctors } from "@/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 import PatientDashboard from '@/components/PatientDashboard';
 import { getLatestHealthParameters } from '@/app/actions/labReports';
+import { autoStopExpiredMedications } from '@/app/actions/medications';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
@@ -34,9 +35,13 @@ export default async function DashboardPage() {
     let patientMedications: any[] = [];
     let patientReports: any[] = [];
     let healthParams: Record<string, any> = {};
+    let patientDoctorNotes: any[] = [];
 
     if (patientData) {
         await ensureLabReportsSchema();
+        await ensureMedicationsSchema();
+        // Auto-stop any medications whose duration has elapsed
+        await autoStopExpiredMedications(patientData.id);
         patientMedications = await db.select().from(medications).where(eq(medications.patientId, patientData.id));
         patientReports = await db.query.labReports.findMany({
             where: eq(labReports.patientId, patientData.id),
@@ -60,6 +65,59 @@ export default async function DashboardPage() {
         if (healthParamsResult.success && healthParamsResult.parameters) {
             healthParams = healthParamsResult.parameters;
         }
+
+        // Fetch patient-visible doctor notes from timeline events (created by doctor, type=appointment, status=completed)
+        const doctorEvents = await db.select()
+            .from(timelineEvents)
+            .where(and(
+                eq(timelineEvents.userId, userId),
+                eq(timelineEvents.createdBy, 'doctor'),
+                eq(timelineEvents.eventType, 'appointment'),
+                eq(timelineEvents.status, 'completed')
+            ))
+            .orderBy(desc(timelineEvents.createdAt))
+            .limit(10);
+
+        // For each event, try to get the doctor's name
+        const doctorIds = [...new Set(doctorEvents.map(e => e.doctorId).filter(Boolean))];
+        const doctorRecords: Record<string, any> = {};
+        for (const docId of doctorIds) {
+            if (docId) {
+                const [doc] = await db.select().from(doctors).where(eq(doctors.id, docId)).limit(1);
+                if (doc) {
+                    const [docUser] = await db.select().from(users).where(eq(users.id, doc.userId)).limit(1);
+                    if (docUser) {
+                        doctorRecords[docId] = {
+                            name: docUser.name || 'Doctor',
+                            specialty: doc.specialization || 'General Physician'
+                        };
+                    }
+                }
+            }
+        }
+
+        patientDoctorNotes = doctorEvents.map(event => ({
+            id: event.id,
+            doctorId: event.doctorId,
+            doctorName: event.doctorId && doctorRecords[event.doctorId]
+                ? `Dr. ${doctorRecords[event.doctorId].name}`
+                : event.title.replace('Consultation with ', '').trim(),
+            specialty: event.doctorId && doctorRecords[event.doctorId]
+                ? doctorRecords[event.doctorId].specialty
+                : 'General Physician',
+            date: (() => {
+                if (!event.eventDate) return '';
+                try {
+                    return new Date(event.eventDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                    });
+                } catch {
+                    return event.eventDate;
+                }
+            })(),
+            note: event.description || '',
+            createdAt: event.createdAt?.toISOString() || null,
+        }));
     }
 
     // Prepare data object (serializing dates/etc if needed)
@@ -85,7 +143,8 @@ export default async function DashboardPage() {
                 uploadedAt: r.uploadedAt?.toISOString() || null,
             }))
         } : null,
-        healthParameters: healthParams
+        healthParameters: healthParams,
+        doctorNotes: patientDoctorNotes
     };
 
     return <PatientDashboard data={dashboardData} />;

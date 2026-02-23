@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { AdapterAccount } from '@auth/core/adapters';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -123,6 +123,7 @@ export const medications = sqliteTable('medications', {
     purpose: text('purpose'), // Reason for taking
     startDate: text('start_date'), // YYYY-MM-DD
     frequency: text('frequency'), // e.g., "Daily", "Twice a day"
+    durationDays: integer('duration_days'), // Number of days to take the medication (null = indefinite)
     status: text('status').default('Active'), // Active, Discontinued
     addedBy: text('added_by').default('Self'), // "Self" or "Dr. Name"
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -217,6 +218,7 @@ export const supportTickets = sqliteTable('support_tickets', {
 });
 
 // Timeline Events Table
+// Timeline Events Table
 export const timelineEvents = sqliteTable('timeline_events', {
     id: text('id').primaryKey().$defaultFn(() => uuidv4()),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -234,3 +236,49 @@ export const timelineEvents = sqliteTable('timeline_events', {
 
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+// Doctor-Patient Relationship (Clinic Management)
+export const doctorPatientRelations = sqliteTable('doctor_patient_relations', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    doctorId: text('doctor_id').notNull().references(() => doctors.id, { onDelete: 'cascade' }),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    addedAt: integer('added_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+}, (t) => ({
+    uniqueRelation: uniqueIndex('doctor_patient_unique').on(t.doctorId, t.patientId),
+}));
+
+// Private Doctor Notes (Not visible to patients)
+export const doctorPrivateNotes = sqliteTable('doctor_private_notes', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    doctorId: text('doctor_id').notNull().references(() => doctors.id, { onDelete: 'cascade' }),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    noteContent: text('note_content').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Structured Allergies (To support Stop/Resume/Hide)
+export const patientAllergies = sqliteTable('patient_allergies', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    allergen: text('allergen').notNull(),
+    severity: text('severity'), // 'Mild', 'Moderate', 'Severe'
+    reaction: text('reaction'),
+    status: text('status').default('active'), // 'active', 'stopped', 'hidden'
+    addedBy: text('added_by').default('patient'), // 'patient' or 'doctor_id'
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }), // If added by doctor
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Structured Chronic Conditions (To support Stop/Resume/Hide)
+export const patientConditions = sqliteTable('patient_conditions', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    conditionName: text('condition_name').notNull(),
+    diagnosedDate: text('diagnosed_date'),
+    status: text('status').default('active'), // 'active', 'stopped', 'hidden'
+    addedBy: text('added_by').default('patient'),
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+

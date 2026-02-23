@@ -35,25 +35,35 @@ export async function getTimelineEvents(userId: string) {
             const reports = await db.select().from(labReports)
                 .where(eq(labReports.patientId, patient.id));
 
-            reportEvents = reports.map(r => ({
-                id: r.id, // Use report ID
-                userId: userId,
-                title: r.fileName || "Lab Report", // Use filename or type
-                description: r.analysis ? "Analysis available" : "Lab Report",
-                eventDate: (() => {
+            reportEvents = reports.map(r => {
+                const labName = r.labName || 'Lab';
+                const uploadDate = (() => {
                     const d = r.reportDate || r.uploadedAt;
-                    // Ensure d is not null before passing to Date
                     const dateToParse = d ? d : new Date();
                     const parsed = new Date(dateToParse);
-                    return !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                })(),
-                eventType: 'test',
-                status: 'completed',
-                reportId: r.id, // Important for linking
-                createdBy: 'system',
-                createdAt: r.uploadedAt,
-                isReport: true // Tag to identify
-            }));
+                    return !isNaN(parsed.getTime())
+                        ? parsed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'Unknown date';
+                })();
+                return {
+                    id: r.id,
+                    userId: userId,
+                    title: r.fileName || 'Lab Report',
+                    description: `${labName} · ${uploadDate}`,
+                    eventDate: (() => {
+                        const d = r.reportDate || r.uploadedAt;
+                        const dateToParse = d ? d : new Date();
+                        const parsed = new Date(dateToParse);
+                        return !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                    })(),
+                    eventType: 'test',
+                    status: 'completed',
+                    reportId: r.id,
+                    createdBy: 'system',
+                    createdAt: r.uploadedAt,
+                    isReport: true,
+                };
+            });
         }
 
         // 4. Merge and Sort
