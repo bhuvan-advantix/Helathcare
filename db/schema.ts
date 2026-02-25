@@ -12,6 +12,7 @@ export const users = sqliteTable('users', {
     role: text('role').notNull().default('pending'), // 'patient' | 'doctor' | 'admin' | 'pending'
     isOnboarded: integer('is_onboarded', { mode: 'boolean' }).default(false),
     customId: text('custom_id').unique(), // #Nrivaa001
+    isBanned: integer('is_banned', { mode: 'boolean' }).default(false), // Admin can ban any user
 });
 
 export const accounts = sqliteTable('accounts', {
@@ -111,6 +112,9 @@ export const doctors = sqliteTable('doctors', {
     hospitalTiming: text('hospital_timing'),
     workingDays: text('working_days'),
     bio: text('bio'),
+
+    // Admin Approval
+    approvalStatus: text('approval_status').default('approved'), // 'pending' | 'approved' | 'rejected'
 
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
@@ -282,3 +286,37 @@ export const patientConditions = sqliteTable('patient_conditions', {
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+// Patient Diagnostics — Doctor-created condition pathway & mind map
+export const patientDiagnostics = sqliteTable('patient_diagnostics', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
+
+    // Condition this pathway is for
+    conditionName: text('condition_name').notNull(),
+
+    // Doctor's assessment
+    conditionStatus: text('condition_status').default('stable'), // 'improving' | 'stable' | 'worsening'
+
+    // JSON array of DiagnosticNode objects (the mind-map)
+    nodes: text('nodes', { mode: 'json' }).$type<any[]>().notNull().default([]),
+
+    // Free-text sections
+    clinicalNotes: text('clinical_notes'),
+    treatmentPlan: text('treatment_plan'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Lab Diagnostics Accounts (Separate login system, created by Admin)
+export const labAccounts = sqliteTable('lab_accounts', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    labName: text('lab_name').notNull(),       // e.g., "Arathi Scans"
+    email: text('email').notNull().unique(),   // Login email
+    password: text('password').notNull(),      // Hashed password
+    city: text('city'),
+    phone: text('phone'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});

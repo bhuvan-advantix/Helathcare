@@ -58,6 +58,11 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Incorrect password. Please try again.");
                 }
 
+                // Check if user is banned
+                if (user.isBanned) {
+                    throw new Error("Your account has been suspended. Please contact support.");
+                }
+
                 return {
                     id: user.id,
                     email: user.email!,

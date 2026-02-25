@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db, ensureLabReportsSchema, ensureMedicationsSchema } from "@/db";
-import { users, patients, medications, labReports, timelineEvents, doctors } from "@/db/schema";
+import { users, patients, medications, labReports, timelineEvents, doctors, patientDiagnostics } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import PatientDashboard from '@/components/PatientDashboard';
 import { getLatestHealthParameters } from '@/app/actions/labReports';
@@ -36,6 +36,7 @@ export default async function DashboardPage() {
     let patientReports: any[] = [];
     let healthParams: Record<string, any> = {};
     let patientDoctorNotes: any[] = [];
+    let diagnosticConditions: { id: string; conditionName: string; conditionStatus: string; createdAt: string | null }[] = [];
 
     if (patientData) {
         await ensureLabReportsSchema();
@@ -43,6 +44,24 @@ export default async function DashboardPage() {
         // Auto-stop any medications whose duration has elapsed
         await autoStopExpiredMedications(patientData.id);
         patientMedications = await db.select().from(medications).where(eq(medications.patientId, patientData.id));
+
+        // Fetch this patient's diagnostic conditions (set by doctor on Diagnostic page)
+        const diagnosticRows = await db
+            .select({
+                id: patientDiagnostics.id,
+                conditionName: patientDiagnostics.conditionName,
+                conditionStatus: patientDiagnostics.conditionStatus,
+                createdAt: patientDiagnostics.createdAt,
+            })
+            .from(patientDiagnostics)
+            .where(eq(patientDiagnostics.patientId, patientData.id));
+
+        diagnosticConditions = diagnosticRows.map(r => ({
+            id: r.id,
+            conditionName: r.conditionName,
+            conditionStatus: r.conditionStatus ?? 'stable',
+            createdAt: r.createdAt?.toISOString() ?? null,
+        }));
         patientReports = await db.query.labReports.findMany({
             where: eq(labReports.patientId, patientData.id),
             orderBy: (reports, { desc }) => [desc(reports.uploadedAt)],
@@ -144,7 +163,8 @@ export default async function DashboardPage() {
             }))
         } : null,
         healthParameters: healthParams,
-        doctorNotes: patientDoctorNotes
+        doctorNotes: patientDoctorNotes,
+        diagnosticConditions,
     };
 
     return <PatientDashboard data={dashboardData} />;

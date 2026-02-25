@@ -229,6 +229,103 @@ async function extractAndStoreHealthParameters(
     }
 }
 
+// ─── Shared AI Extraction Helper (used by admin, lab, and patient upload paths) ───
+/**
+ * Downloads a PDF from Cloudinary, runs LlamaParse + Mistral AI extraction,
+ * saves the structured result to the DB, and returns success/failure.
+ * Accepts `patientId` directly so it can be called from any upload path.
+ */
+export async function extractAndSaveLabReportByPatientId(data: {
+    patientId: string;
+    cloudinaryUrl: string;
+    fileName: string;
+    fileSize: number;
+    labNameOverride?: string | null; // e.g. lab's own name passed from Lab Dashboard
+}): Promise<{ success: boolean; reportId?: string; error?: string }> {
+    const { patientId, cloudinaryUrl, fileName, fileSize, labNameOverride } = data;
+
+    console.log('[extractAndSaveLabReportByPatientId] Starting for patientId:', patientId);
+
+    // 1. Verify patient exists
+    const patient = await db.query.patients.findFirst({ where: eq(patients.id, patientId) });
+    if (!patient) {
+        return { success: false, error: 'Patient not found' };
+    }
+
+    // 2. Download PDF from Cloudinary
+    let buffer: Buffer;
+    try {
+        console.log('[extractAndSaveLabReportByPatientId] Downloading from Cloudinary:', cloudinaryUrl);
+        const response = await fetch(cloudinaryUrl);
+        if (!response.ok) {
+            throw new Error(`Cloudinary fetch failed with status ${response.status}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+        console.log('[extractAndSaveLabReportByPatientId] Downloaded, bytes:', buffer.length);
+    } catch (fetchErr: any) {
+        console.error('[extractAndSaveLabReportByPatientId] Download error:', fetchErr);
+        return { success: false, error: `Failed to download PDF: ${fetchErr.message}` };
+    }
+
+    // 3. Run LlamaParse + Mistral AI extraction
+    let extractionResult: {
+        reportDate: string | null;
+        labName: string | null;
+        patientName: string | null;
+        doctorName: string | null;
+        metadata: { [key: string]: any };
+        testResults: TestResult[];
+    };
+    try {
+        extractionResult = await extractLabDataWithAI(buffer);
+        console.log('[extractAndSaveLabReportByPatientId] AI extraction complete, tests found:', extractionResult.testResults?.length ?? 0);
+    } catch (aiErr: any) {
+        console.warn('[extractAndSaveLabReportByPatientId] AI extraction failed, saving with empty data:', aiErr.message);
+        // Fallback: save record with no extracted data rather than blocking the upload entirely
+        extractionResult = {
+            reportDate: null,
+            labName: null,
+            patientName: null,
+            doctorName: null,
+            testResults: [],
+            metadata: {},
+        };
+    }
+
+    const { reportDate, labName: extractedLabName, patientName, doctorName, testResults, metadata } = extractionResult;
+    const finalLabName = labNameOverride ?? extractedLabName ?? null;
+    const finalReportDate = reportDate || new Date().toISOString().split('T')[0];
+
+    // 4. Save to database
+    try {
+        const [report] = await db.insert(labReports).values({
+            patientId: patient.id,
+            fileName,
+            reportDate: finalReportDate,
+            labName: finalLabName,
+            patientName,
+            doctorName,
+            extractedData: { results: testResults, metadata } as any,
+            rawText: 'AI Extracted',
+            fileSize,
+            pageCount: 1,
+            cloudinaryUrl,
+        }).returning();
+
+        // 5. Store key health parameters if found
+        if (testResults && testResults.length > 0) {
+            await extractAndStoreHealthParameters(patient.id, report.id, testResults, finalReportDate);
+        }
+
+        console.log('[extractAndSaveLabReportByPatientId] Saved report id:', report.id);
+        return { success: true, reportId: report.id };
+    } catch (dbErr: any) {
+        console.error('[extractAndSaveLabReportByPatientId] DB error:', dbErr);
+        return { success: false, error: 'Failed to save report to database' };
+    }
+}
+
 // --- NEW: Process Report Uploaded Client-Side (Bypasses Vercel Size Limit) ---
 export async function processUploadedReport(cloudinaryUrl: string, userId: string, originalFileName: string, fileSize: number) {
     console.log('Processing pre-uploaded report:', cloudinaryUrl);

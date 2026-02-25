@@ -409,39 +409,17 @@ const InfoItem = ({ label, value, badges }: { label: string, value?: string | nu
     </div>
 );
 
-const HealthMetricCard = ({ title, value, unit, status, date, icon, statusColor }: any) => {
+const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
     // Format date nicely
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return '-';
         try {
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return '-';
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         } catch {
             return '-';
         }
-    };
-
-    // Determine status badge color
-    const getStatusBadgeColor = (status: string | null) => {
-        // If status is present:
-        if (status) {
-            const s = status.toLowerCase();
-            if (s.includes('high') || s.includes('low') || s.includes('critical')) return 'bg-red-50 text-red-600 ring-1 ring-red-200';
-        }
-        // Default (Normal) - also catches empty status if we force it later
-        return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200';
-    };
-
-    // Determine value text color
-    const getValueTextColor = (statusValue: string | null) => {
-        // If status is present:
-        if (statusValue) {
-            const s = statusValue.toLowerCase();
-            if (s.includes('high') || s.includes('low') || s.includes('critical')) return 'text-red-600';
-        }
-        // Default (Normal)
-        return 'text-emerald-600';
     };
 
     // Clean value (remove H/L prefixes and units mixed in value)
@@ -462,78 +440,139 @@ const HealthMetricCard = ({ title, value, unit, status, date, icon, statusColor 
         displayStatus = 'Normal';
     }
 
-    const textColor = getValueTextColor(displayStatus);
+    const s = (displayStatus || '').toLowerCase();
+    const isWarningOrHigh = s.includes('high') || s.includes('low') || s.includes('critical');
+
+    // Status Badge Details
+    let badgeText = s;
+    let badgeStyle = "bg-emerald-50 text-emerald-600 ring-emerald-200";
+    if (isWarningOrHigh) {
+        badgeText = 'warning';
+        badgeStyle = "bg-orange-50 text-orange-500 ring-orange-200";
+    } else {
+        badgeText = 'normal';
+    }
+
+    // Trend indicator
+    let trendArrow = "→";
+    let trendText = "stable";
+    let trendStyle = "text-slate-500";
+
+    if (s.includes('high')) {
+        trendArrow = "↑";
+        trendText = "above range";
+        trendStyle = "text-orange-500";
+    } else if (s.includes('low')) {
+        trendArrow = "↓";
+        trendText = "below range";
+        trendStyle = "text-blue-500";
+    } else if (s === 'normal' || s === '') {
+        trendArrow = "↑";
+        trendText = "improved";
+        trendStyle = "text-emerald-500";
+    }
 
     return (
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 transition-all duration-300 cursor-pointer group relative h-full flex flex-col justify-between min-h-[180px]">
-            <div>
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-2 text-slate-500">
-                        <span className="p-1.5 bg-slate-50 rounded-lg">{icon}</span>
-                        <span className="font-semibold text-sm">{title}</span>
-                    </div>
-                    {finalValue && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-teal-50 text-teal-600 ring-1 ring-teal-200">
-                            Latest
-                        </span>
-                    )}
-                </div>
-
-                <div className="flex items-baseline gap-1 mb-2">
-                    <span className={`text-3xl font-black ${textColor}`}>{finalValue || "-"}</span>
-                    {finalValue && <span className="text-sm text-slate-400 font-medium">{unit}</span>}
-                </div>
-
-                {displayStatus && (
-                    <div className="mb-2">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusBadgeColor(displayStatus)}`}>
-                            {displayStatus}
-                        </span>
-                    </div>
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40">
+            {/* Top row: Title and Status badge */}
+            <div className="flex justify-between items-start">
+                <h3 className="text-[15px] font-semibold text-slate-900 leading-tight pr-4">{title}</h3>
+                {finalValue && (
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide ring-1 ring-inset ${badgeStyle}`}>
+                        {badgeText}
+                    </span>
                 )}
             </div>
-            <p className="text-[10px] text-slate-400">
-                {finalValue ? `Test date: ${formatDate(date)}` : 'No data available'}
+
+            {/* Value and Unit */}
+            <div className="flex items-baseline gap-1 mt-auto mt-2">
+                <span className="text-3xl font-bold text-slate-900 leading-none">
+                    {finalValue || "-"}
+                </span>
+                {finalValue && <span className="text-[11px] font-medium text-slate-500 pb-0.5">{unit}</span>}
+            </div>
+
+            {/* Trend Indicator */}
+            <div className="mt-1">
+                {finalValue ? (
+                    <div className={`text-[11px] font-medium flex items-center gap-1 ${trendStyle}`}>
+                        <span>{trendArrow}</span>
+                        <span>{trendText}</span>
+                    </div>
+                ) : (
+                    <div className="text-[11px] font-medium text-slate-300">No data</div>
+                )}
+            </div>
+
+            {/* Date */}
+            <p className="text-[10px] text-slate-400 mt-2">
+                {finalValue ? `Last updated: ${formatDate(date)}` : ' '}
             </p>
         </div>
     );
 }
 
-const ConditionCard = ({ name, diagnosed, status, statusColor, related }: any) => (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-        <div className="flex justify-between items-start mb-3">
-            <h4 className="font-bold text-slate-900 text-lg">{name}</h4>
-            {status && (
-                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${status === 'moderate' ? 'bg-orange-50 text-orange-600 ring-orange-200' : 'bg-teal-50 text-teal-600 ring-teal-200'
-                    }`}>
-                    {status}
-                </span>
-            )}
-        </div>
-        <div className="space-y-1 mb-4">
-            <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Diagnosed:</span>
-                <span className="font-medium text-slate-700">{diagnosed || "N/A"}</span>
-            </div>
-            {/* <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Status:</span>
-                <span className="font-medium text-emerald-600">Controlled</span>
-            </div> */}
-        </div>
-        {related && (
-            <div className="mt-auto pt-3 border-t border-slate-50">
-                <p className="text-[10px] text-slate-400 mb-2 uppercase font-semibold">Related Parameters</p>
-                <div className="flex flex-wrap gap-1.5">
-                    {related.map((tag: string) => (
-                        <span key={tag} className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[10px] border border-slate-100">
-                            {tag}
-                        </span>
-                    ))}
+const ConditionCard = ({ name, diagnosed, status, related, href = "/diagnostic" }: any) => {
+    // Map conditionStatus from DB to display badge
+    const s = (status || '').toLowerCase();
+    let badgeLabel = s || 'stable';
+    let badgeCls = 'bg-emerald-50 text-emerald-600 ring-emerald-200'; // default stable/mild
+    if (s === 'worsening' || s.includes('critical') || s.includes('severe')) {
+        badgeLabel = 'worsening';
+        badgeCls = 'bg-red-50 text-red-500 ring-red-200';
+    } else if (s === 'stable' || s === 'moderate') {
+        badgeLabel = s === 'moderate' ? 'moderate' : 'stable';
+        badgeCls = 'bg-orange-50 text-orange-500 ring-orange-200';
+    } else if (s === 'improving' || s === 'mild') {
+        badgeLabel = s === 'mild' ? 'mild' : 'improving';
+        badgeCls = 'bg-emerald-50 text-emerald-600 ring-emerald-200';
+    }
+
+    // "Current Status" readable label
+    const currentStatusLabel = s === 'improving' ? 'improving' : s === 'worsening' ? 'worsening' : 'controlled';
+    const currentStatusCls = (s === 'worsening' || s.includes('critical')) ? 'text-red-500' : 'text-teal-600';
+
+    return (
+        <Link href={href} className="block group">
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all duration-200 cursor-pointer h-full flex flex-col gap-3">
+                {/* Top: name + severity badge */}
+                <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-bold text-slate-900 text-base leading-snug capitalize group-hover:text-teal-700 transition-colors">
+                        {name}
+                    </h4>
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ring-1 ring-inset capitalize ${badgeCls}`}>
+                        {badgeLabel}
+                    </span>
                 </div>
+
+                {/* Diagnosed date */}
+                <p className="text-xs text-slate-500">
+                    Diagnosed: <span className="font-medium text-slate-700">{diagnosed || '—'}</span>
+                </p>
+
+                {/* Current Status */}
+                <p className="text-xs">
+                    <span className="text-slate-600 font-medium">Current Status: </span>
+                    <span className={`font-bold ${currentStatusCls}`}>{currentStatusLabel}</span>
+                </p>
+
+                {/* Related Parameters (only if provided) */}
+                {related && related.length > 0 && (
+                    <div className="mt-auto pt-2 border-t border-slate-50">
+                        <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1.5">Related Parameters</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {related.map((tag: string) => (
+                                <span key={tag} className="px-2 py-0.5 bg-slate-50 text-slate-500 rounded-md text-[10px] font-medium border border-slate-100">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
-        )}
-    </div>
-);
+        </Link>
+    );
+};
 
 // --- ImagesBadge Component ---
 interface ImagesBadgeProps {
@@ -872,6 +911,12 @@ interface DashboardProps {
             doctorId?: string | null;
             createdAt?: string | null;
         }>;
+        diagnosticConditions?: Array<{
+            id: string;
+            conditionName: string;
+            conditionStatus: string;
+            createdAt: string | null;
+        }>;
     }
 }
 
@@ -1110,7 +1155,7 @@ const AddMedicationModal = ({ patientId, onClose, initialData }: { patientId: st
 };
 
 export default function PatientDashboard({ data }: DashboardProps) {
-    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [] } = data;
+    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [], diagnosticConditions = [] } = data;
     const router = useRouter();
     const [currentView, setCurrentView] = useState('dashboard');
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
@@ -1355,7 +1400,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
     const displayMedications = [...uniqueDbMeds, ...formattedLegacyMeds]
         .filter((m: any) => m.status !== 'Hidden')
         .sort((a: any, b: any) => (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2));
-    const conditions = parseList(patient?.chronicConditions);
+    // Conditions are now from diagnostics, not the plain text field
 
     return (
         <div className="min-h-screen bg-[#F7F9FA] flex flex-col">
@@ -1608,8 +1653,8 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                                                 const remaining = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                                                                 return (
                                                                     <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border uppercase tracking-wide flex items-center gap-1 ${remaining <= 2
-                                                                            ? 'bg-orange-50 text-orange-700 border-orange-200'
-                                                                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                        ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                                        : 'bg-blue-50 text-blue-700 border-blue-100'
                                                                         }`}>
                                                                         ⏱ {remaining > 0 ? `${remaining}d left of ${med.durationDays}d` : 'Ending today'}
                                                                     </span>
@@ -1756,18 +1801,19 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         <motion.div variants={itemVariants} className="space-y-6">
                             <h2 className="text-xl font-bold text-slate-900">Chronic Conditions</h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {conditions.length > 0 ? (
-                                    conditions.map((condition, idx) => (
+                                {diagnosticConditions.length > 0 ? (
+                                    diagnosticConditions.map((condition) => (
                                         <ConditionCard
-                                            key={idx}
-                                            name={condition}
-                                            diagnosed="-"
-                                            status="Active"
+                                            key={condition.id}
+                                            href={`/diagnostic/${condition.id}`}
+                                            name={condition.conditionName}
+                                            diagnosed={condition.createdAt ? new Date(condition.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : "-"}
+                                            status={condition.conditionStatus.charAt(0).toUpperCase() + condition.conditionStatus.slice(1)}
                                         />
                                     ))
                                 ) : (
                                     <div className="col-span-full">
-                                        <p className="text-slate-500 italic">Not yet added</p>
+                                        <p className="text-slate-500 italic">No chronic conditions recorded</p>
                                     </div>
                                 )}
                             </div>

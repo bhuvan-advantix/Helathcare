@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-    Activity, ArrowLeft, Stethoscope, Save, Plus, X, Upload, Calendar, Phone, UserPlus, User, Ruler, FileText, Pill, Trash2, MapPin, Weight, ChevronDown, CheckCircle2, AlertCircle, Loader2, AlertTriangle, Heart, ShieldCheck
+    Activity, ArrowLeft, Stethoscope, Save, Plus, X, Upload, Calendar, Phone, UserPlus, User, Ruler, FileText, Pill, Trash2, MapPin, Weight, ChevronDown, CheckCircle2, AlertCircle, Loader2, AlertTriangle, Heart, ShieldCheck,
+    Brain, TrendingUp, TrendingDown, Minus, GripVertical, ChevronRight
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { finishConsultation, appendPatientClinicalContext } from '@/app/actions/consultation';
+import { saveDiagnostic } from '@/app/actions/diagnostic';
 import { processReportUploadedByDoctor } from '@/app/actions/labReports';
 import { getCloudinarySignature } from '@/app/actions/cloudinarySignature';
 
@@ -94,6 +96,91 @@ export default function DoctorConsultationView({
     const [newAllergies, setNewAllergies] = useState('');
     const [newSurgeries, setNewSurgeries] = useState('');
     const [newLifestyle, setNewLifestyle] = useState('');
+
+    // ── Diagnostic Pathway state ────────────────────────────────────
+    const NODE_TYPES = [
+        { value: 'initial', label: 'Start / Presentation', color: '#10B981' },
+        { value: 'symptoms', label: 'Symptoms', color: '#F59E0B' },
+        { value: 'diagnosis', label: 'Diagnosis / Finding', color: '#8B5CF6' },
+        { value: 'treatment', label: 'Treatment / Medication', color: '#22C55E' },
+        { value: 'care', label: 'Ongoing Care / Monitoring', color: '#0EA5E9' },
+        { value: 'terminal', label: 'Current Status / Follow-up', color: '#3B82F6' },
+    ];
+
+    const [diagConditionName, setDiagConditionName] = useState('');
+    const [diagStatus, setDiagStatus] = useState<'improving' | 'stable' | 'worsening'>('stable');
+    const [diagNodes, setDiagNodes] = useState<Array<{
+        id: string; title: string; description: string; type: string;
+        connections: string[]; parameters: { name: string; value: string; unit: string }[];
+        x: number; y: number;
+    }>>([]);
+    const [diagClinicalNotes, setDiagClinicalNotes] = useState('');
+    const [diagTreatmentPlan, setDiagTreatmentPlan] = useState('');
+    const [isSavingDiag, setIsSavingDiag] = useState(false);
+    const [diagSaved, setDiagSaved] = useState(false);
+    const [diagError, setDiagError] = useState('');
+    const [diagOpen, setDiagOpen] = useState(false);
+
+    const addDiagNode = () => {
+        const id = `node-${Date.now()}`;
+        const col = diagNodes.filter(n => n.x === Math.max(0, ...diagNodes.map(n => n.x))).length;
+        setDiagNodes(prev => [...prev, {
+            id, title: '', description: '', type: 'diagnosis',
+            connections: prev.length > 0 ? [prev[prev.length - 1].id] : [],
+            parameters: [], x: prev.length, y: 0
+        }]);
+    };
+
+    const updateDiagNode = (id: string, field: string, value: any) =>
+        setDiagNodes(prev => prev.map(n => n.id === id ? { ...n, [field]: value } : n));
+
+    const removeDiagNode = (id: string) =>
+        setDiagNodes(prev => prev
+            .filter(n => n.id !== id)
+            .map(n => ({ ...n, connections: n.connections.filter(c => c !== id) }))
+        );
+
+    const addNodeParam = (nodeId: string) =>
+        setDiagNodes(prev => prev.map(n => n.id === nodeId
+            ? { ...n, parameters: [...n.parameters, { name: '', value: '', unit: '' }] }
+            : n
+        ));
+
+    const updateNodeParam = (nodeId: string, idx: number, field: string, val: string) =>
+        setDiagNodes(prev => prev.map(n => {
+            if (n.id !== nodeId) return n;
+            const params = [...n.parameters];
+            params[idx] = { ...params[idx], [field]: val };
+            return { ...n, parameters: params };
+        }));
+
+    const removeNodeParam = (nodeId: string, idx: number) =>
+        setDiagNodes(prev => prev.map(n => {
+            if (n.id !== nodeId) return n;
+            return { ...n, parameters: n.parameters.filter((_, i) => i !== idx) };
+        }));
+
+    const handleSaveDiagnostic = async () => {
+        if (!diagConditionName.trim()) { setDiagError('Please enter a condition name.'); return; }
+        if (diagNodes.length === 0) { setDiagError('Add at least one pathway step.'); return; }
+        setIsSavingDiag(true); setDiagError('');
+        try {
+            const res = await saveDiagnostic(patient.id, {
+                conditionName: diagConditionName,
+                conditionStatus: diagStatus,
+                nodes: diagNodes.map((n, i) => ({ ...n, date: new Date().toISOString() })),
+                clinicalNotes: diagClinicalNotes,
+                treatmentPlan: diagTreatmentPlan,
+            });
+            if (res.success) {
+                setDiagSaved(true);
+                setTimeout(() => setDiagSaved(false), 3000);
+            } else setDiagError(res.error || 'Failed to save');
+        } catch (e: any) {
+            setDiagError(e.message || 'Unexpected error');
+        } finally { setIsSavingDiag(false); }
+    };
+    // ──────────────────────────────────────────────────────────────────
 
     // Follow up
     const [followUp, setFollowUp] = useState('');
@@ -1061,6 +1148,239 @@ export default function DoctorConsultationView({
                     </div>
 
                     <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-wider">PDF will be AI-processed and stored in patient&apos;s records · Report will appear under patient&apos;s Diagnostics</p>
+                </section>
+
+                {/* 6. Diagnostic Pathway Builder */}
+                <section className="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
+                    {/* Header toggle */}
+                    <button
+                        type="button"
+                        onClick={() => setDiagOpen(v => !v)}
+                        className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-violet-50 to-indigo-50 hover:from-violet-100 hover:to-indigo-100 transition-colors border-b border-violet-100"
+                    >
+                        <div className="w-9 h-9 bg-white rounded-xl border border-violet-200 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <Brain className="w-4 h-4 text-violet-600" />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <h2 className="text-base font-black text-slate-900 leading-tight">Diagnostic Pathway</h2>
+                            <p className="text-[11px] font-semibold text-violet-500 mt-0.5">Build a condition mind-map — visible to patient on their Diagnostic page</p>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${diagOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {diagOpen && (
+                        <div className="p-5 sm:p-6 space-y-6">
+
+                            {/* Condition Name + Status */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-1.5">Condition Name *</label>
+                                    <input
+                                        type="text"
+                                        value={diagConditionName}
+                                        onChange={e => setDiagConditionName(e.target.value)}
+                                        placeholder="e.g. Type 2 Diabetes, Hypertension"
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-bold rounded-xl px-4 py-3 focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-colors text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-1.5">Patient Status</label>
+                                    <div className="flex gap-2">
+                                        {([['improving', 'Improving', 'emerald'], ['stable', 'Stable', 'amber'], ['worsening', 'Worsening', 'red']] as const).map(([val, label, color]) => (
+                                            <button
+                                                key={val}
+                                                type="button"
+                                                onClick={() => setDiagStatus(val)}
+                                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all ${diagStatus === val
+                                                        ? color === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
+                                                            : color === 'amber' ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                                : 'bg-red-500 text-white border-red-500 shadow-md'
+                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                            >
+                                                {val === 'improving' ? <TrendingDown className="w-3.5 h-3.5" /> : val === 'worsening' ? <TrendingUp className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Patient Info (auto-filled from DB) */}
+                            <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Patient Information (auto-filled)</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {[['Name', patient.name], ['Age', age ? `${age} yrs` : '--'], ['Gender', patient.gender || '--'], ['Blood Group', patient.bloodGroup || '--']].map(([label, val]) => (
+                                        <div key={label}>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">{label}</p>
+                                            <p className="text-sm font-black text-slate-800 capitalize">{val}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Mind-map Nodes */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-900">Pathway Steps</h3>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">Each step is a node in the diagnostic mind-map</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addDiagNode}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold text-xs rounded-xl border border-violet-200 transition-colors"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" /> Add Step
+                                    </button>
+                                </div>
+
+                                {diagNodes.length === 0 ? (
+                                    <div className="flex flex-col items-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                                        <Brain className="w-8 h-8 text-slate-300 mb-2" />
+                                        <p className="text-sm font-bold text-slate-500">No steps yet</p>
+                                        <p className="text-xs text-slate-400 mt-1">Click &ldquo;Add Step&rdquo; to build the pathway</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {diagNodes.map((node, idx) => {
+                                            const nodeStyle = NODE_TYPES.find(t => t.value === node.type);
+                                            return (
+                                                <div key={node.id} className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+                                                    {/* Node header */}
+                                                    <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100" style={{ borderLeftColor: nodeStyle?.color, borderLeftWidth: 4 }}>
+                                                        <span className="text-xs font-black text-slate-400 w-5 text-center flex-shrink-0">{idx + 1}</span>
+                                                        <input
+                                                            type="text"
+                                                            value={node.title}
+                                                            onChange={e => updateDiagNode(node.id, 'title', e.target.value)}
+                                                            placeholder="Step title (e.g. Initial Presentation)"
+                                                            className="flex-1 bg-transparent text-sm font-black text-slate-900 placeholder:text-slate-300 focus:outline-none min-w-0"
+                                                        />
+                                                        {/* Type selector */}
+                                                        <select
+                                                            value={node.type}
+                                                            onChange={e => updateDiagNode(node.id, 'type', e.target.value)}
+                                                            className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-300 bg-white text-slate-700 max-w-[120px] sm:max-w-[160px]"
+                                                        >
+                                                            {NODE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                        </select>
+                                                        <button type="button" onClick={() => removeDiagNode(node.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Description */}
+                                                    <div className="px-4 pt-3 pb-2">
+                                                        <textarea
+                                                            value={node.description}
+                                                            onChange={e => updateDiagNode(node.id, 'description', e.target.value)}
+                                                            placeholder="Describe this step — symptoms, findings, medications, or next steps..."
+                                                            rows={2}
+                                                            className="w-full text-sm text-slate-700 bg-white border border-slate-100 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-300 placeholder:text-slate-300 resize-none font-medium"
+                                                        />
+                                                    </div>
+
+                                                    {/* Parameters */}
+                                                    <div className="px-4 pb-4 space-y-2">
+                                                        {node.parameters.map((param, pi) => (
+                                                            <div key={pi} className="grid grid-cols-[1fr_80px_60px_28px] gap-2 items-center">
+                                                                <input
+                                                                    type="text"
+                                                                    value={param.name}
+                                                                    onChange={e => updateNodeParam(node.id, pi, 'name', e.target.value)}
+                                                                    placeholder="Parameter (e.g. HbA1c)"
+                                                                    className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-300 text-slate-800"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={param.value}
+                                                                    onChange={e => updateNodeParam(node.id, pi, 'value', e.target.value)}
+                                                                    placeholder="Value"
+                                                                    className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-300 text-slate-800"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={param.unit}
+                                                                    onChange={e => updateNodeParam(node.id, pi, 'unit', e.target.value)}
+                                                                    placeholder="Unit"
+                                                                    className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-300 text-slate-800"
+                                                                />
+                                                                <button type="button" onClick={() => removeNodeParam(node.id, pi)} className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors">
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addNodeParam(node.id)}
+                                                            className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-1 mt-1 transition-colors"
+                                                        >
+                                                            <Plus className="w-3 h-3" /> Add parameter (e.g. HbA1c: 6.2%)
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Clinical Notes + Treatment Plan */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-1.5">Clinical Notes</label>
+                                    <textarea
+                                        value={diagClinicalNotes}
+                                        onChange={e => setDiagClinicalNotes(e.target.value)}
+                                        rows={4}
+                                        placeholder="Progress, observations, emerging risk factors..."
+                                        className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-900 font-medium rounded-xl px-4 py-3 focus:border-violet-400 focus:ring-1 focus:ring-violet-400 resize-none placeholder:text-slate-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-1.5">Treatment Plan</label>
+                                    <textarea
+                                        value={diagTreatmentPlan}
+                                        onChange={e => setDiagTreatmentPlan(e.target.value)}
+                                        rows={4}
+                                        placeholder="Medications, lifestyle plan, follow-up schedule..."
+                                        className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-900 font-medium rounded-xl px-4 py-3 focus:border-violet-400 focus:ring-1 focus:ring-violet-400 resize-none placeholder:text-slate-400"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Error */}
+                            {diagError && (
+                                <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                    <p className="text-sm font-semibold text-red-600">{diagError}</p>
+                                </div>
+                            )}
+
+                            {/* Save Diagnostic button */}
+                            <div className="flex items-center justify-between">
+                                <p className="text-[11px] text-slate-400 font-bold">Saved separately · visible immediately on patient&apos;s Diagnostic page</p>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveDiagnostic}
+                                    disabled={isSavingDiag}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm transition-all shadow-sm ${diagSaved
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-60'
+                                        }`}
+                                >
+                                    {isSavingDiag ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                                    ) : diagSaved ? (
+                                        <><CheckCircle2 className="w-4 h-4" /> Saved!</>
+                                    ) : (
+                                        <><Brain className="w-4 h-4" /> Save Diagnostic Pathway</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </section>
 
                 {/* Submit / Finish */}
