@@ -5,7 +5,8 @@ import {
     Users, Stethoscope, FlaskConical, TicketCheck, ShieldCheck, LogOut, RefreshCw,
     BarChart3, Hourglass, Ban, Plus, Building2, FileText, Pill, Activity,
     ChevronDown, ChevronUp, Eye, CheckCircle, XCircle, ShieldOff, Clock,
-    AlertTriangle, X, EyeOff, Upload
+    AlertTriangle, X, EyeOff, Upload, Heart, LayoutDashboard, UserCircle,
+    CalendarDays, TestTube2, MapPin, Siren, Loader2
 } from 'lucide-react';
 import {
     approveDoctorAction, rejectDoctorAction, banUserAction, unbanUserAction,
@@ -81,13 +82,13 @@ const AdminUpload = ({ patientId, patientName, onDone }: { patientId: string; pa
             <label className="block cursor-pointer">
                 <input type="file" accept=".pdf" className="hidden" onChange={e => { setFile(e.target.files?.[0] || null); setStatus('idle'); }} />
                 <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-all ${file ? 'border-teal-400 bg-white' : 'border-teal-300 hover:bg-white'}`}>
-                    {file ? <p className="text-sm font-bold text-teal-700">📄 {file.name} <span className="text-teal-400">({(file.size / 1024 / 1024).toFixed(2)}MB)</span></p>
+                    {file ? <p className="text-sm font-bold text-teal-700 flex items-center gap-1.5"><FileText className="w-4 h-4" /> {file.name} <span className="text-teal-400">({(file.size / 1024 / 1024).toFixed(2)}MB)</span></p>
                         : <p className="text-sm font-bold text-teal-500">Click to select PDF</p>}
                 </div>
             </label>
             {status === 'error' && <p className="text-red-600 text-xs font-bold bg-red-50 px-3 py-2 rounded-lg">{msg}</p>}
-            {status === 'success' && <p className="text-emerald-700 text-xs font-bold bg-emerald-50 px-3 py-2 rounded-lg">✓ {msg}</p>}
-            {status === 'uploading' && <p className="text-blue-700 text-xs font-bold bg-blue-50 px-3 py-2 rounded-lg">⏳ Uploading...</p>}
+            {status === 'success' && <p className="text-emerald-700 text-xs font-bold bg-emerald-50 px-3 py-2 rounded-lg flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> {msg}</p>}
+            {status === 'uploading' && <p className="text-blue-700 text-xs font-bold bg-blue-50 px-3 py-2 rounded-lg flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...</p>}
             <button onClick={handle} disabled={!file || status === 'uploading'} className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl disabled:opacity-50 transition-colors">
                 {status === 'uploading' ? 'Uploading...' : 'Upload Now'}
             </button>
@@ -303,9 +304,13 @@ const PatientCard = ({ pat, refresh }: { pat: any; refresh: () => void }) => {
 };
 
 // ─── Ticket Card ──────────────────────────────────────────────────────────────
-const pageLabels: Record<string, string> = {
-    Dashboard: '📊 Dashboard', 'Lab Reports': '🧪 Lab Reports', Profile: '👤 Profile',
-    Timeline: '📅 Timeline', 'Health Parameters': '❤️ Health Data', Other: '📌 Other',
+const PageIcon: Record<string, React.ReactNode> = {
+    Dashboard: <LayoutDashboard className="w-4 h-4 text-slate-500" />,
+    'Lab Reports': <TestTube2 className="w-4 h-4 text-slate-500" />,
+    Profile: <UserCircle className="w-4 h-4 text-slate-500" />,
+    Timeline: <CalendarDays className="w-4 h-4 text-slate-500" />,
+    'Health Parameters': <Heart className="w-4 h-4 text-slate-500" />,
+    Other: <MapPin className="w-4 h-4 text-slate-500" />,
 };
 const TicketCard = ({ ticket, refresh }: { ticket: any; refresh: () => void }) => {
     const [isPending, startTransition] = useTransition();
@@ -318,7 +323,7 @@ const TicketCard = ({ ticket, refresh }: { ticket: any; refresh: () => void }) =
             <div className={`px-3 sm:px-5 py-2.5 sm:py-3 flex items-center gap-1.5 sm:gap-2 flex-wrap ${bgColor}`}>
                 <span className="font-black text-slate-900 text-xs sm:text-sm">#{ticket.ticketNumber}</span>
                 <Badge status={ticket.status} />
-                {ticket.priority && <span className={`text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border uppercase tracking-widest ${ticket.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : ticket.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{ticket.priority === 'urgent' ? '🚨' : '📌'} {ticket.priority}</span>}
+                {ticket.priority && <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border uppercase tracking-widest ${ticket.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : ticket.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{ticket.priority === 'urgent' ? <Siren className="w-3 h-3" /> : <MapPin className="w-3 h-3" />} {ticket.priority}</span>}
                 <span className="ml-auto text-[9px] sm:text-[10px] text-slate-400 font-bold whitespace-nowrap">{new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
             </div>
 
@@ -348,7 +353,8 @@ const TicketCard = ({ ticket, refresh }: { ticket: any; refresh: () => void }) =
 
                 {/* Page */}
                 <div className="bg-slate-50 rounded-xl px-4 py-2.5 flex items-center gap-2 border border-slate-100">
-                    <span className="text-sm">{pageLabels[ticket.selectedPage] || `📌 ${ticket.selectedPage}`}</span>
+                    {PageIcon[ticket.selectedPage] ?? <MapPin className="w-4 h-4 text-slate-500" />}
+                    <span className="text-sm font-semibold text-slate-700">{ticket.selectedPage}</span>
                     <span className="text-xs text-slate-400 font-medium">— issue reported on this page</span>
                 </div>
 
@@ -455,18 +461,20 @@ const OverviewTab = ({ data, go }: { data: AdminData; go: (t: string) => void })
     <div className="space-y-6">
         <div><h2 className="text-2xl font-black text-slate-900">Platform Overview</h2><p className="text-slate-500 text-sm">Live snapshot of NiraivaHealth platform.</p></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-                { label: 'Total Patients', v: data.stats.patientCount, color: 'text-blue-600 bg-blue-50', icon: '🧑‍⚕️' },
-                { label: 'Total Doctors', v: data.stats.doctorCount, color: 'text-teal-600 bg-teal-50', icon: '🩺' },
-                { label: 'Lab Reports', v: data.stats.totalLabReports, color: 'text-emerald-600 bg-emerald-50', icon: '🧪' },
-                { label: 'Prescriptions', v: data.stats.totalMeds, color: 'text-purple-600 bg-purple-50', icon: '💊' },
-                { label: 'Pending Approval', v: data.stats.pendingDoctors, color: 'text-amber-600 bg-amber-50', icon: '⏳' },
-                { label: 'Banned Users', v: data.stats.bannedUsers, color: 'text-red-500 bg-red-50', icon: '🚫' },
-                { label: 'Open Tickets', v: data.stats.openTickets, color: 'text-blue-600 bg-blue-50', icon: '🎟️' },
-                { label: 'Lab Accounts', v: data.stats.labCount, color: 'text-emerald-600 bg-emerald-50', icon: '🏥' },
-            ].map(s => (
+            {([
+                { label: 'Total Patients', v: data.stats.patientCount, iconColor: 'text-blue-600', bg: 'bg-blue-50', Icon: Users },
+                { label: 'Total Doctors', v: data.stats.doctorCount, iconColor: 'text-teal-600', bg: 'bg-teal-50', Icon: Stethoscope },
+                { label: 'Lab Reports', v: data.stats.totalLabReports, iconColor: 'text-emerald-600', bg: 'bg-emerald-50', Icon: TestTube2 },
+                { label: 'Prescriptions', v: data.stats.totalMeds, iconColor: 'text-purple-600', bg: 'bg-purple-50', Icon: Pill },
+                { label: 'Pending Approval', v: data.stats.pendingDoctors, iconColor: 'text-amber-600', bg: 'bg-amber-50', Icon: Hourglass },
+                { label: 'Banned Users', v: data.stats.bannedUsers, iconColor: 'text-red-500', bg: 'bg-red-50', Icon: Ban },
+                { label: 'Open Tickets', v: data.stats.openTickets, iconColor: 'text-blue-600', bg: 'bg-blue-50', Icon: TicketCheck },
+                { label: 'Lab Accounts', v: data.stats.labCount, iconColor: 'text-emerald-600', bg: 'bg-emerald-50', Icon: Building2 },
+            ] as const).map(s => (
                 <div key={s.label} className="bg-white rounded-2xl border-2 border-slate-100 p-4 shadow-sm">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-3 ${s.color}`}>{s.icon}</div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.bg}`}>
+                        <s.Icon className={`w-5 h-5 ${s.iconColor}`} />
+                    </div>
                     <p className="text-3xl font-black text-slate-900">{s.v}</p>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5">{s.label}</p>
                 </div>

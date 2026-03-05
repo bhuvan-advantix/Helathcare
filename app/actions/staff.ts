@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import {
-    staffAccounts, patients, users, medications,
+    staffAccounts, patients, users, medications, doctors,
     timelineEvents, patientVitals, patientAllergies, patientConditions
 } from "@/db/schema";
 import { eq, desc, and, like, sql } from "drizzle-orm";
@@ -194,6 +194,7 @@ export async function registerWalkInPatient(data: {
     });
 
     revalidatePath("/staff");
+    revalidatePath("/admin/dashboard");
     return { success: true, customId, tempPassword, patientEmail: data.email.toLowerCase() };
 }
 
@@ -260,29 +261,81 @@ export async function recordPatientVitals(
         pulseRate?: string;
         spO2?: string;
         notes?: string;
+        recordedByName?: string; // staff's entered name
     }
 ): Promise<{ success: boolean; error?: string }> {
     const staff = await getStaffSession();
     if (!staff) return { success: false, error: "Unauthorized" };
 
+    const { recordedByName, ...vitals } = vitalsData;
+    const recorderName = (recordedByName || "").trim() || staff.staffName;
+
     await db.insert(patientVitals).values({
         patientId,
-        ...vitalsData,
-        recordedBy: staff.staffName,
+        ...vitals,
+        recordedBy: recorderName,
     });
 
-    if (vitalsData.weight || vitalsData.height) {
+    if (vitals.weight || vitals.height) {
         await db
             .update(patients)
             .set({
-                ...(vitalsData.weight ? { weight: vitalsData.weight } : {}),
-                ...(vitalsData.height ? { height: vitalsData.height } : {}),
+                ...(vitals.weight ? { weight: vitals.weight } : {}),
+                ...(vitals.height ? { height: vitals.height } : {}),
             })
             .where(eq(patients.id, patientId));
     }
 
     revalidatePath("/staff");
     return { success: true };
+}
+
+// ─── Get Available Doctors ────────────────────────────────────────────────────
+
+export async function getAvailableDoctors(): Promise<{
+    success: boolean;
+    doctors?: { id: string; name: string; specialization: string; hospitalTiming: string | null; workingDays: string | null; clinicName: string | null }[];
+    error?: string;
+}> {
+    const staff = await getStaffSession();
+    if (!staff) return { success: false, error: "Unauthorized" };
+
+    const allDoctors = await db
+        .select({
+            id: doctors.id,
+            userId: doctors.userId,
+            specialization: doctors.specialization,
+            hospitalTiming: doctors.hospitalTiming,
+            workingDays: doctors.workingDays,
+            clinicName: doctors.clinicName,
+            approvalStatus: doctors.approvalStatus,
+        })
+        .from(doctors)
+        .where(eq(doctors.approvalStatus, "approved"));
+
+    const enriched = await Promise.all(
+        allDoctors.map(async (d) => {
+            const [u] = await db
+                .select({ name: users.name, isBanned: users.isBanned })
+                .from(users)
+                .where(eq(users.id, d.userId))
+                .limit(1);
+            return {
+                id: d.id,
+                name: u?.name ?? "Unknown Doctor",
+                specialization: d.specialization,
+                hospitalTiming: d.hospitalTiming,
+                workingDays: d.workingDays,
+                clinicName: d.clinicName,
+                isBanned: u?.isBanned ?? false,
+            };
+        })
+    );
+
+    return {
+        success: true,
+        doctors: enriched.filter(d => !d.isBanned),
+    };
 }
 
 // ─── Create Appointment ───────────────────────────────────────────────────────
@@ -292,35 +345,165 @@ export async function createAppointmentForPatient(data: {
     patientId: string;
     title: string;
     appointmentDate: string;
+    appointmentTime?: string;
     hospitalName: string;
+    doctorName?: string;
     notes?: string;
     appointmentType: string;
 }): Promise<{ success: boolean; error?: string }> {
     const staff = await getStaffSession();
     if (!staff) return { success: false, error: "Unauthorized" };
 
-    const description = [
-        data.notes ? data.notes : null,
+    const dateTime = data.appointmentTime
+        ? `${data.appointmentDate}T${data.appointmentTime}`
+        : data.appointmentDate;
+
+    const descParts = [
+        data.notes || null,
         `Hospital: ${data.hospitalName}`,
         `Type: ${data.appointmentType}`,
+        data.doctorName ? `Doctor: ${data.doctorName}` : null,
+        data.appointmentTime ? `Time: ${data.appointmentTime}` : null,
         `Scheduled by: ${staff.staffName}`,
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean);
 
     await db.insert(timelineEvents).values({
         userId: data.patientUserId,
         title: data.title,
-        description,
-        eventDate: data.appointmentDate,
+        description: descParts.join("\n"),
+        eventDate: dateTime,
         eventType: "appointment",
         status: "pending",
         createdBy: "staff",
     });
 
     revalidatePath("/staff");
+    revalidatePath("/staff/dashboard");
     return { success: true };
 }
 
-// ─── Get Appointment Stats ─────────────────────────────────────────────────────
+// ─── Token Queue System (auto-populated from today's appointments) ────────────
+
+// Parse a time string like "09:00" or "9:00 AM" to minutes since midnight
+function parseTimeToMinutes(t: string): number {
+    if (!t) return 9999;
+    const clean = t.trim();
+    const ampm = /([0-9]{1,2}):([0-9]{2})\s*(AM|PM)?/i.exec(clean);
+    if (!ampm) return 9999;
+    let h = parseInt(ampm[1], 10);
+    const m = parseInt(ampm[2], 10);
+    const period = (ampm[3] || "").toUpperCase();
+    if (period === "PM" && h !== 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+}
+
+export async function getTodayQueue(): Promise<{
+    success: boolean;
+    queue?: any[];
+    error?: string;
+}> {
+    const staff = await getStaffSession();
+    if (!staff) return { success: false, error: "Unauthorized" };
+
+    // Use IST date (UTC+5:30)
+    const nowUTC = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const todayIST = new Date(nowUTC.getTime() + istOffset);
+    const todayStr = todayIST.toISOString().split("T")[0];
+
+    // Fetch all today's appointments (eventDate starts with todayStr)
+    const allAppts = await db
+        .select()
+        .from(timelineEvents)
+        .where(eq(timelineEvents.eventType, "appointment"));
+
+    const todayAppts = allAppts.filter(a =>
+        (a.eventDate || "").startsWith(todayStr) && a.status !== "cancelled"
+    );
+
+    // Enrich with patient name + parse time
+    const enriched = await Promise.all(
+        todayAppts.map(async (appt) => {
+            const [u] = await db
+                .select({ name: users.name, customId: users.customId })
+                .from(users)
+                .where(eq(users.id, appt.userId))
+                .limit(1);
+
+            const desc = appt.description || "";
+            const timeMatch = desc.match(/Time:\s*([^\n]+)/);
+            const doctorMatch = desc.match(/Doctor:\s*([^\n]+)/);
+            const typeMatch = desc.match(/Type:\s*([^\n]+)/);
+            const hospitalMatch = desc.match(/Hospital:\s*([^\n]+)/);
+
+            const apptTime = timeMatch ? timeMatch[1].trim() :
+                (appt.eventDate?.includes("T") ? appt.eventDate.split("T")[1].substring(0, 5) : null);
+
+            return {
+                id: appt.id,
+                patientName: u?.name ?? "Unknown",
+                customId: u?.customId ?? "",
+                appointmentTime: apptTime,
+                timeMinutes: parseTimeToMinutes(apptTime || ""),
+                doctor: doctorMatch ? doctorMatch[1].trim() : null,
+                type: typeMatch ? typeMatch[1].trim() : "Consultation",
+                hospital: hospitalMatch ? hospitalMatch[1].trim() : null,
+                title: appt.title,
+                status: appt.status === "completed" ? "done" :
+                    appt.status === "cancelled" ? "no_show" : "waiting",
+                dbStatus: appt.status,
+            };
+        })
+    );
+
+    // Sort by appointment time ascending
+    enriched.sort((a, b) => a.timeMinutes - b.timeMinutes);
+
+    // Assign token numbers in order
+    const queue = enriched.map((item, idx) => ({
+        ...item,
+        tokenNumber: idx + 1,
+    }));
+
+    return { success: true, queue };
+}
+
+export async function updateQueueTokenStatus(
+    tokenId: string,
+    status: "waiting" | "in_progress" | "done" | "no_show"
+): Promise<{ success: boolean; error?: string }> {
+    const staff = await getStaffSession();
+    if (!staff) return { success: false, error: "Unauthorized" };
+
+    const dbStatus =
+        status === "done" ? "completed" :
+            status === "no_show" ? "cancelled" :
+                "pending";
+
+    await db.update(timelineEvents)
+        .set({ status: dbStatus })
+        .where(eq(timelineEvents.id, tokenId));
+
+    revalidatePath("/staff");
+    return { success: true };
+}
+
+export async function deleteQueueToken(
+    tokenId: string
+): Promise<{ success: boolean; error?: string }> {
+    const staff = await getStaffSession();
+    if (!staff) return { success: false, error: "Unauthorized" };
+
+    await db.update(timelineEvents)
+        .set({ status: "cancelled" })
+        .where(eq(timelineEvents.id, tokenId));
+
+    revalidatePath("/staff");
+    return { success: true };
+}
+
+// ─── Get Appointment Stats ───────────────────────────────────────────────────
 
 export async function getStaffAppointmentStats(): Promise<{
     success: boolean;
@@ -328,40 +511,80 @@ export async function getStaffAppointmentStats(): Promise<{
         todayTotal: number;
         todayFollowUps: number;
         todayNew: number;
-        byHospital: { hospital: string; count: number }[];
+        todayStr: string;
+        allAppointments: any[];
     };
     error?: string;
 }> {
     const staff = await getStaffSession();
     if (!staff) return { success: false, error: "Unauthorized" };
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    // IST-aware today
+    const nowUTC = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const todayIST = new Date(nowUTC.getTime() + istOffset);
+    const todayStr = todayIST.toISOString().split("T")[0];
 
-    const todayAppointments = await db
+    const allAppointments = await db
         .select()
         .from(timelineEvents)
-        .where(and(
-            eq(timelineEvents.eventType, "appointment"),
-            eq(timelineEvents.eventDate, todayStr)
-        ));
+        .where(eq(timelineEvents.eventType, "appointment"));
 
+    const todayAppointments = allAppointments.filter(a =>
+        (a.eventDate || "").startsWith(todayStr)
+    );
     const todayTotal = todayAppointments.length;
     const todayFollowUps = todayAppointments.filter(a => a.title.toLowerCase().includes("follow")).length;
     const todayNew = todayTotal - todayFollowUps;
 
-    // Group by hospital from description
-    const hospitalCounts: Record<string, number> = {};
-    for (const appt of todayAppointments) {
-        const match = (appt.description || "").match(/Hospital:\s*(.+)/);
-        const hospital = match ? match[1].trim() : (staff.hospitalName || "Unknown");
-        hospitalCounts[hospital] = (hospitalCounts[hospital] || 0) + 1;
-    }
+    // Enrich all appointments with patient info
+    const enriched = await Promise.all(
+        allAppointments.map(async (appt) => {
+            const [u] = await db
+                .select({ name: users.name, customId: users.customId })
+                .from(users)
+                .where(eq(users.id, appt.userId))
+                .limit(1);
 
-    const byHospital = Object.entries(hospitalCounts).map(([hospital, count]) => ({ hospital, count }));
+            const desc = appt.description || "";
+            const doctorMatch = desc.match(/Doctor:\s*([^\n]+)/);
+            const hospitalMatch = desc.match(/Hospital:\s*([^\n]+)/);
+            const timeMatch = desc.match(/Time:\s*([^\n]+)/);
+            const typeMatch = desc.match(/Type:\s*([^\n]+)/);
+            const dateOnly = (appt.eventDate || "").substring(0, 10);
+
+            return {
+                ...appt,
+                patientName: u?.name ?? "Unknown",
+                customId: u?.customId ?? "",
+                doctorName: doctorMatch ? doctorMatch[1].trim() : null,
+                hospitalName: hospitalMatch ? hospitalMatch[1].trim() : null,
+                appointmentTime: timeMatch ? timeMatch[1].trim() : null,
+                appointmentType: typeMatch ? typeMatch[1].trim() : null,
+                dateOnly,
+            };
+        })
+    );
+
+    const toMins = (t: string | null) => {
+        if (!t) return 0;
+        const m = /(\d{1,2}):(\d{2})/.exec(t);
+        return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+    };
+
+    const todayList = enriched
+        .filter(a => a.dateOnly === todayStr)
+        .sort((a, b) => toMins(a.appointmentTime) - toMins(b.appointmentTime));
+    const upcomingList = enriched
+        .filter(a => a.dateOnly > todayStr)
+        .sort((a, b) => (a.eventDate || "").localeCompare(b.eventDate || ""));
+    const pastList = enriched
+        .filter(a => a.dateOnly < todayStr)
+        .sort((a, b) => (b.eventDate || "").localeCompare(a.eventDate || ""));
 
     return {
         success: true,
-        data: { todayTotal, todayFollowUps, todayNew, byHospital }
+        data: { todayTotal, todayFollowUps, todayNew, todayStr, allAppointments: [...todayList, ...upcomingList, ...pastList] }
     };
 }
 

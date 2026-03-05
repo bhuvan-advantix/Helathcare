@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
     Activity, ArrowLeft, Stethoscope, Save, Plus, X, Upload, Calendar, Phone, UserPlus, User, Ruler, FileText, Pill, Trash2, MapPin, Weight, ChevronDown, CheckCircle2, AlertCircle, Loader2, AlertTriangle, Heart, ShieldCheck,
-    Brain, TrendingUp, TrendingDown, Minus, GripVertical, ChevronRight
+    Brain, TrendingUp, TrendingDown, Minus, GripVertical, ChevronRight, FlaskConical, Syringe
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { finishConsultation, appendPatientClinicalContext } from '@/app/actions/
 import { saveDiagnostic } from '@/app/actions/diagnostic';
 import { processReportUploadedByDoctor } from '@/app/actions/labReports';
 import { getCloudinarySignature } from '@/app/actions/cloudinarySignature';
+import { addLabOrders } from '@/app/actions/labOrders';
 
 export default function DoctorConsultationView({
     patient, doctor, healthParams, privateNotes
@@ -195,6 +196,28 @@ export default function DoctorConsultationView({
         { value: 'SOS / When needed', label: 'SOS / When needed' },
     ];
 
+    // Lab Tests & Injections ordered (staff/lab only — NOT visible to patient)
+    const [labTests, setLabTests] = useState<Array<{ id: number; name: string; notes: string }>>([]);
+    const [injections, setInjections] = useState<Array<{ id: number; name: string; notes: string }>>([]);
+    const [labOrderInput, setLabOrderInput] = useState('');
+    const [injectionInput, setInjectionInput] = useState('');
+
+    const addLabTest = () => {
+        const n = labOrderInput.trim();
+        if (!n) return;
+        setLabTests(prev => [...prev, { id: Date.now(), name: n, notes: '' }]);
+        setLabOrderInput('');
+    };
+    const removeLabTest = (id: number) => setLabTests(prev => prev.filter(t => t.id !== id));
+
+    const addInjection = () => {
+        const n = injectionInput.trim();
+        if (!n) return;
+        setInjections(prev => [...prev, { id: Date.now(), name: n, notes: '' }]);
+        setInjectionInput('');
+    };
+    const removeInjection = (id: number) => setInjections(prev => prev.filter(i => i.id !== id));
+
     // Lab upload state
     const [isUploadingLab, setIsUploadingLab] = useState(false);
     const [uploadedReports, setUploadedReports] = useState<Array<{ name: string; labName: string | null; date: string; reportId: string }>>([]);
@@ -338,6 +361,15 @@ export default function DoctorConsultationView({
                 diagnosis: diagnoses.join(', '),
                 followUp: followUp
             });
+
+            // Save lab orders (staff/lab only — not shown to patient)
+            const allOrders = [
+                ...labTests.map(t => ({ name: t.name, type: 'lab' as const, notes: t.notes })),
+                ...injections.map(i => ({ name: i.name, type: 'injection' as const, notes: i.notes })),
+            ];
+            if (allOrders.length > 0) {
+                await addLabOrders(patient.id, allOrders);
+            }
 
             // Append clinical context if doctor filled anything in
             if (newAllergies.trim() || newSurgeries.trim() || newLifestyle.trim()) {
@@ -960,6 +992,108 @@ export default function DoctorConsultationView({
                     </div>
                 </section>
 
+                {/* 3b. Lab Tests & Injections — Staff/Lab only, NOT visible to patient */}
+                <section className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
+                    <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+                        <div className="w-9 h-9 bg-white rounded-xl border border-blue-200 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <FlaskConical className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-black text-slate-900 leading-tight">Lab Tests &amp; Injections</h2>
+                            <p className="text-[11px] font-bold text-blue-500 mt-0.5 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                                Not visible to patient — visible to Staff &amp; Lab only
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-blue-100">
+
+                        {/* Lab Tests */}
+                        <div className="p-5 space-y-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <FlaskConical className="w-3.5 h-3.5 text-blue-500" />
+                                </div>
+                                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Lab Tests Ordered</p>
+                            </div>
+
+                            {/* Existing list */}
+                            {labTests.length > 0 && (
+                                <div className="space-y-1.5">
+                                    {labTests.map(t => (
+                                        <div key={t.id} className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                                            <FlaskConical className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                            <span className="text-sm font-bold text-blue-800 flex-1">{t.name}</span>
+                                            <button onClick={() => removeLabTest(t.id)} className="p-0.5 hover:bg-blue-200 rounded-full transition-colors">
+                                                <X className="w-3.5 h-3.5 text-blue-500" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Add input */}
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={labOrderInput}
+                                    onChange={e => setLabOrderInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLabTest())}
+                                    placeholder="e.g. CBC, LFT, Blood Sugar"
+                                    className="flex-1 text-sm bg-blue-50/40 border border-blue-100 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-slate-400 font-medium"
+                                />
+                                <button onClick={addLabTest} disabled={!labOrderInput.trim()}
+                                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-black text-sm rounded-xl transition-colors">
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400">Press Enter or + to add · One test per entry</p>
+                        </div>
+
+                        {/* Injections */}
+                        <div className="p-5 space-y-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                                    <Syringe className="w-3.5 h-3.5 text-indigo-500" />
+                                </div>
+                                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Injections Ordered</p>
+                            </div>
+
+                            {injections.length > 0 && (
+                                <div className="space-y-1.5">
+                                    {injections.map(inj => (
+                                        <div key={inj.id} className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+                                            <Syringe className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                                            <span className="text-sm font-bold text-indigo-800 flex-1">{inj.name}</span>
+                                            <button onClick={() => removeInjection(inj.id)} className="p-0.5 hover:bg-indigo-200 rounded-full transition-colors">
+                                                <X className="w-3.5 h-3.5 text-indigo-500" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={injectionInput}
+                                    onChange={e => setInjectionInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addInjection())}
+                                    placeholder="e.g. Dexamethasone 4mg IV"
+                                    className="flex-1 text-sm bg-indigo-50/40 border border-indigo-100 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 placeholder:text-slate-400 font-medium"
+                                />
+                                <button onClick={addInjection} disabled={!injectionInput.trim()}
+                                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-sm rounded-xl transition-colors">
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400">Press Enter or + to add · One injection per entry</p>
+                        </div>
+
+                    </div>
+                </section>
+
                 {/* 4. Doctor Notes & Follow up */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -1192,10 +1326,10 @@ export default function DoctorConsultationView({
                                                 type="button"
                                                 onClick={() => setDiagStatus(val)}
                                                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all ${diagStatus === val
-                                                        ? color === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
-                                                            : color === 'amber' ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                                                : 'bg-red-500 text-white border-red-500 shadow-md'
-                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                                                    ? color === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
+                                                        : color === 'amber' ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                            : 'bg-red-500 text-white border-red-500 shadow-md'
+                                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                                                     }`}
                                             >
                                                 {val === 'improving' ? <TrendingDown className="w-3.5 h-3.5" /> : val === 'worsening' ? <TrendingUp className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
@@ -1366,8 +1500,8 @@ export default function DoctorConsultationView({
                                     onClick={handleSaveDiagnostic}
                                     disabled={isSavingDiag}
                                     className={`flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm transition-all shadow-sm ${diagSaved
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-60'
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-60'
                                         }`}
                                 >
                                     {isSavingDiag ? (

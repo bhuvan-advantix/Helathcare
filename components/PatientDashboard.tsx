@@ -46,7 +46,8 @@ import {
     Settings,
     HelpCircle,
     Edit2,
-    Calendar
+    Calendar,
+    ArrowUpRight
 } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import HelpSupportView from '@/components/HelpSupportView';
@@ -474,10 +475,10 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
     }
 
     return (
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between h-40">
+        <div className="group bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:border-teal-200 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-[180px] relative overflow-hidden">
             {/* Top row: Title and Status badge */}
-            <div className="flex justify-between items-start">
-                <h3 className="text-[15px] font-semibold text-slate-900 leading-tight pr-4">{title}</h3>
+            <div className="flex justify-between items-start relative z-10">
+                <h3 className="text-[15px] font-semibold text-slate-900 leading-tight pr-4 group-hover:text-teal-700 transition-colors">{title}</h3>
                 {finalValue && (
                     <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide ring-1 ring-inset ${badgeStyle}`}>
                         {badgeText}
@@ -487,7 +488,7 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
 
             {/* Value and Unit */}
             <div className="flex items-baseline gap-1 mt-auto mt-2">
-                <span className="text-3xl font-bold text-slate-900 leading-none">
+                <span className={`text-3xl font-bold leading-none ${finalValue ? (isWarningOrHigh ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'}`}>
                     {finalValue || "-"}
                 </span>
                 {finalValue && <span className="text-[11px] font-medium text-slate-500 pb-0.5">{unit}</span>}
@@ -505,10 +506,20 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
                 )}
             </div>
 
-            {/* Date */}
-            <p className="text-[10px] text-slate-400 mt-2">
-                {finalValue ? `Last updated: ${formatDate(date)}` : ' '}
-            </p>
+            {/* Date and Action Link */}
+            <div className="mt-2 flex items-center justify-between relative z-10">
+                <p className="text-[10px] text-slate-400">
+                    {finalValue ? `Last updated: ${formatDate(date)}` : ' '}
+                </p>
+                <div className="text-[10px] font-bold text-teal-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    View <ArrowUpRight className="w-3 h-3" />
+                </div>
+            </div>
+
+            {/* Subtle background icon on hover */}
+            <div className="absolute -bottom-4 -right-4 opacity-[0] group-hover:opacity-[0.03] transition-opacity duration-300 pointer-events-none transform group-hover:scale-110">
+                <Activity className="w-24 h-24 text-teal-900" />
+            </div>
         </div>
     );
 }
@@ -1466,7 +1477,16 @@ export default function PatientDashboard({ data }: DashboardProps) {
                     >
 
                         <motion.div variants={itemVariants} id="section-health-parameters">
-                            <h2 className="text-xl font-bold text-slate-900 mb-6">Health Parameters</h2>
+                            <div className="flex justify-between items-end mb-6">
+                                <h2 className="text-xl font-bold text-slate-900">Health Parameters</h2>
+                                <Link
+                                    href="/dashboard/health"
+                                    className="hidden sm:flex items-center gap-1.5 text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors"
+                                >
+                                    View All Details
+                                    <ArrowUpRight className="w-4 h-4" />
+                                </Link>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                                 <Link href="/dashboard/health?param=Blood%20Glucose">
                                     <HealthMetricCard
@@ -1829,69 +1849,6 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             </motion.div>
                         </div>
 
-                        {/* Upcoming Appointments (from staff scheduling) */}
-                        {upcomingAppointments.length > 0 && (
-                            <motion.div variants={itemVariants} className="space-y-4">
-                                <h2 className="text-xl font-bold text-slate-900">Upcoming Appointments</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {upcomingAppointments.map((appt) => {
-                                        const hospitalMatch = (appt.description || '').match(/Hospital:\s*(.+)/);
-                                        const hospital = hospitalMatch ? hospitalMatch[1].trim() : null;
-                                        const typeMatch = (appt.description || '').match(/Type:\s*(.+)/);
-                                        const apptType = typeMatch ? typeMatch[1].trim() : 'Appointment';
-                                        const scheduledByMatch = (appt.description || '').match(/Scheduled by:\s*(.+)/);
-                                        const scheduledBy = scheduledByMatch ? scheduledByMatch[1].trim() : null;
-                                        const apptDate = appt.eventDate ? new Date(appt.eventDate) : null;
-                                        const isToday = apptDate ? appt.eventDate === new Date().toISOString().split('T')[0] : false;
-                                        const isPast = apptDate ? appt.eventDate < new Date().toISOString().split('T')[0] : false;
-                                        return (
-                                            <div key={appt.id} className={`bg-white rounded-2xl p-5 border-2 shadow-sm transition-all ${isToday ? 'border-blue-300 shadow-blue-100' :
-                                                isPast ? 'border-slate-200 opacity-70' :
-                                                    'border-slate-100 hover:border-blue-200 hover:shadow-md'
-                                                }`}>
-                                                <div className="flex items-start justify-between gap-2 mb-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
-                                                            <Calendar className="w-4 h-4 text-blue-600" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-black text-slate-900">{apptType}</p>
-                                                            {isToday && <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">TODAY</span>}
-                                                        </div>
-                                                    </div>
-                                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border whitespace-nowrap ${appt.status === 'completed' ? 'bg-teal-50 text-teal-700 border-teal-200' :
-                                                        appt.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                            'bg-amber-50 text-amber-700 border-amber-200'
-                                                        }`}>
-                                                        {appt.status === 'completed' ? '✓ Completed' : appt.status === 'cancelled' ? '✕ Cancelled' : '⏳ Upcoming'}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                        <span className="font-bold text-slate-700">
-                                                            {apptDate ? apptDate.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : appt.eventDate}
-                                                        </span>
-                                                    </div>
-                                                    {hospital && (
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                                            <span className="font-bold text-blue-600">{hospital}</span>
-                                                        </div>
-                                                    )}
-                                                    {scheduledBy && (
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                            <Stethoscope className="w-3.5 h-3.5 text-slate-400" />
-                                                            <span className="font-medium text-slate-500">Booked by {scheduledBy}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </motion.div>
-                        )}
 
                         {/* Chronic Conditions */}
                         <motion.div variants={itemVariants} className="space-y-6">

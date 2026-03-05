@@ -349,3 +349,22 @@ export const patientVitals = sqliteTable('patient_vitals', {
     recordedAt: integer('recorded_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+// Lab Orders — Doctor-ordered tests/injections (STAFF + LAB only, never shown to patient)
+export const labOrders = sqliteTable('lab_orders', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
+    doctorName: text('doctor_name'),            // Display name of ordering doctor
+
+    name: text('name').notNull(),               // e.g., "CBC", "Dexamethasone 4mg IV"
+    type: text('type').notNull().default('lab'), // 'lab' | 'injection'
+    notes: text('notes'),                       // Optional notes from doctor
+
+    // Payment tracking
+    isPaid: integer('is_paid', { mode: 'boolean' }).default(false),
+    paidAt: integer('paid_at', { mode: 'timestamp' }),
+    paidBy: text('paid_by'),                    // Staff name or Lab name that marked as paid
+
+    orderedAt: integer('ordered_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    orderedDate: text('ordered_date'),          // YYYY-MM-DD for easy filtering
+});

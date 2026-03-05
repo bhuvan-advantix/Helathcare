@@ -1,14 +1,143 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { FlaskConical, Search, User, Droplet, MapPin, Upload, CheckCircle, LogOut, AlertCircle, X, FileText, Phone } from 'lucide-react';
+import { useState, useTransition, useEffect } from 'react';
+import { FlaskConical, Search, User, Droplet, MapPin, Upload, CheckCircle, LogOut, AlertCircle, X, FileText, Phone, Syringe, BadgeCheck, CheckCheck, RefreshCw } from 'lucide-react';
 import { searchPatientForLab, labLogout, labUploadReport } from '@/app/actions/lab';
+import { getLabOrdersForPatient, markLabOrdersPaid } from '@/app/actions/labOrders';
 import { useRouter } from 'next/navigation';
 
 interface LabSession { labId: string; labName: string; email: string; }
 interface PatientResult {
     patientId: string; name: string | null; customId: string | null;
     gender: string | null; age: number | null; bloodGroup: string | null; city: string | null; phone: string | null;
+}
+
+// ─── Lab Orders Panel ────────────────────────────────────────────────────────────────
+function LabOrdersPanel({ patientId, labName }: { patientId: string; labName: string }) {
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [isPending, startTransition] = useTransition();
+    const [paidSuccess, setPaidSuccess] = useState(false);
+    const [error, setError] = useState('');
+
+    const load = async () => {
+        setLoading(true);
+        const r = await getLabOrdersForPatient(patientId);
+        if (r.success && r.orders) setOrders(r.orders);
+        setLoading(false);
+    };
+
+    // load on mount
+    useEffect(() => { load(); }, [patientId]);
+
+    const toggleSelect = (id: string) => {
+        setSelected(prev => {
+            const n = new Set(prev);
+            if (n.has(id)) n.delete(id); else n.add(id);
+            return n;
+        });
+    };
+
+    const handleMarkPaid = () => {
+        if (!selected.size) { setError('Select at least one item.'); return; }
+        setError('');
+        startTransition(async () => {
+            const r = await markLabOrdersPaid([...selected], labName);
+            if (r.success) {
+                setPaidSuccess(true);
+                setSelected(new Set());
+                await load();
+                setTimeout(() => setPaidSuccess(false), 3000);
+            } else { setError(r.error || 'Failed'); }
+        });
+    };
+
+    const pending = orders.filter(o => !o.isPaid);
+    const paid = orders.filter(o => o.isPaid);
+
+    return (
+        <div className="bg-white rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+                <div className="flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-blue-500" />
+                    <h4 className="font-black text-slate-900 text-sm sm:text-base">Doctor-Ordered Tests &amp; Injections</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-blue-600 bg-white border border-blue-200 px-2 py-0.5 rounded-full">{pending.length} Pending</span>
+                    <button onClick={load} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors">
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-3">
+                {loading ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-400 font-medium py-4 justify-center">
+                        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        Loading orders...
+                    </div>
+                ) : orders.length === 0 ? (
+                    <p className="text-sm text-slate-400 font-medium text-center py-4">No tests or injections ordered for this patient yet.</p>
+                ) : (
+                    <>
+                        {/* Pending */}
+                        {pending.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pending Payment</p>
+                                {pending.map(o => (
+                                    <label key={o.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selected.has(o.id) ? 'border-blue-400 bg-blue-50' : 'border-slate-100 bg-slate-50 hover:border-blue-200'
+                                        }`}>
+                                        <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleSelect(o.id)}
+                                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" />
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            {o.type === 'injection'
+                                                ? <Syringe className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                                                : <FlaskConical className="w-4 h-4 text-blue-500 flex-shrink-0" />}
+                                            <div className="min-w-0">
+                                                <p className="font-black text-slate-900 text-sm">{o.name}</p>
+                                                <p className="text-[10px] text-slate-400">{o.type === 'injection' ? 'Injection' : 'Lab Test'} · {o.doctorName || 'Doctor'}</p>
+                                            </div>
+                                        </div>
+                                    </label>
+                                ))}
+                                {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+                                {paidSuccess && (
+                                    <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold">
+                                        <BadgeCheck className="w-4 h-4" /> Marked as Paid!
+                                    </div>
+                                )}
+                                <button onClick={handleMarkPaid} disabled={isPending || selected.size === 0}
+                                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs sm:text-sm rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <BadgeCheck className="w-4 h-4" />
+                                    {isPending ? 'Updating...' : `Mark ${selected.size > 0 ? selected.size + ' ' : ''}Selected as Paid`}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Paid */}
+                        {paid.length > 0 && (
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Paid</p>
+                                {paid.map(o => (
+                                    <div key={o.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 opacity-60">
+                                        {o.type === 'injection'
+                                            ? <Syringe className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                                            : <FlaskConical className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-slate-700 text-sm line-through">{o.name}</p>
+                                            <p className="text-[10px] text-slate-400">Paid by {o.paidBy}</p>
+                                        </div>
+                                        <CheckCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
 }
 
 export default function LabDashboard({ session }: { session: LabSession }) {
@@ -156,6 +285,11 @@ export default function LabDashboard({ session }: { session: LabSession }) {
                                 <span className="text-xs sm:text-sm font-bold text-slate-700">{patient.phone}</span>
                             </div>
                         )}
+
+                        {/* Doctor-Ordered Lab Tests & Injections */}
+                        <div className="px-4 sm:px-6 py-4 border-b-2 border-slate-100">
+                            <LabOrdersPanel patientId={patient.patientId} labName={session.labName} />
+                        </div>
 
                         {/* Upload Section */}
                         <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
