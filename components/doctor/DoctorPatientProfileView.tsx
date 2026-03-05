@@ -25,7 +25,7 @@ const FREQUENCIES = [
 ];
 
 export default function DoctorPatientProfileView({
-    patient, doctor, reports, healthParams, timeline, medications, allergies, conditions, privateNotes, consultationHistory
+    patient, doctor, reports, healthParams, timeline, medications, allergies, conditions, privateNotes, consultationHistory, staffVitals
 }: any) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -384,6 +384,66 @@ export default function DoctorPatientProfileView({
                     {/* ── Left Column ── */}
                     <div className="lg:col-span-4 space-y-4 sm:space-y-6">
 
+                        {/* Staff-Recorded Vitals (Today / Latest) */}
+                        {staffVitals && staffVitals.length > 0 && (() => {
+                            const latest = staffVitals[0];
+                            const recordedDate = latest.recordedAt ? new Date(latest.recordedAt) : null;
+                            const formattedDate = recordedDate ? recordedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                            const formattedTime = recordedDate ? recordedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+                            const vitalItems = [
+                                { label: 'BP', value: latest.bloodPressure, unit: 'mmHg', icon: '❤️' },
+                                { label: 'Temp', value: latest.temperature, unit: '', icon: '🌡️' },
+                                { label: 'Pulse', value: latest.pulseRate, unit: 'bpm', icon: '💓' },
+                                { label: 'SpO2', value: latest.spO2, unit: '', icon: '🫁' },
+                                { label: 'Weight', value: latest.weight, unit: '', icon: '⚖️' },
+                                { label: 'Height', value: latest.height, unit: '', icon: '📏' },
+                            ].filter(v => v.value);
+                            return (
+                                <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl shadow-sm border border-teal-200 p-4 sm:p-5 mb-0">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-teal-600 flex items-center justify-center">
+                                                <Activity className="w-4 h-4 text-white" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-sm font-black text-teal-900">Staff-Recorded Vitals</h2>
+                                                <p className="text-[10px] text-teal-600 font-bold">
+                                                    Recorded by <span className="text-teal-800">{latest.recordedBy || 'Staff'}</span>
+                                                    {formattedDate && <> &bull; {formattedDate} at {formattedTime}</>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {staffVitals.length > 1 && (
+                                            <span className="text-[10px] font-bold text-teal-600 bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-full">
+                                                +{staffVitals.length - 1} more records
+                                            </span>
+                                        )}
+                                    </div>
+                                    {vitalItems.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            {vitalItems.map(v => (
+                                                <div key={v.label} className="bg-white/80 rounded-xl px-3 py-2 border border-teal-100">
+                                                    <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest mb-0.5">{v.label}</p>
+                                                    <p className="text-sm font-black text-slate-900">
+                                                        {v.icon} {v.value}
+                                                        {v.unit && <span className="text-[10px] text-slate-400 font-medium ml-0.5">{v.unit}</span>}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-teal-600 font-medium">All vital values were empty.</p>
+                                    )}
+                                    {latest.notes && (
+                                        <div className="mt-2 bg-white/70 rounded-lg px-3 py-2 border border-teal-100">
+                                            <p className="text-[10px] font-bold text-teal-500 uppercase tracking-widest mb-0.5">Staff Notes</p>
+                                            <p className="text-xs text-slate-700 font-medium">{latest.notes}</p>
+                                        </div>
+                                    )}
+                                </section>
+                            );
+                        })()}
+
                         {/* Vitals Snapshot */}
                         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
                             <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -417,6 +477,7 @@ export default function DoctorPatientProfileView({
                                 ))}
                             </div>
                         </section>
+
 
                         {/* Known Allergies */}
                         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">

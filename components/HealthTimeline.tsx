@@ -49,6 +49,23 @@ export default function HealthTimeline({ user }: { user: any }) {
         fetchEvents();
     }, [user.id]);
 
+    // Handle voice command ?section= scroll (from VoiceMic navigation)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get('section');
+        if (!section) return;
+        setTimeout(() => {
+            const el = document.getElementById(`section-${section}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('voice-highlight');
+                setTimeout(() => el.classList.remove('voice-highlight'), 3000);
+            }
+            window.history.replaceState({}, '', window.location.pathname);
+        }, 600);
+    }, []);
+
     const fetchEvents = async () => {
         setLoading(true);
         const res = await getTimelineEvents(user.id);
@@ -154,7 +171,7 @@ export default function HealthTimeline({ user }: { user: any }) {
 
                         {/* Upcoming Events Section (Pinned at top) */}
                         {upcomingEvents.length > 0 && (
-                            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div id="section-upcoming" className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                                 <h3 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
                                     <Calendar className="w-5 h-5 text-teal-600" />

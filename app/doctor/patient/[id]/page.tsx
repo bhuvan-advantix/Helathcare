@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors } from "@/db/schema";
+import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors, patientVitals } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import Footer from "@/components/Footer";
@@ -51,6 +51,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         conditions,
         privateNotes,
         allDoctors,
+        staffVitals,
     ] = await Promise.all([
         db.select().from(labReports).where(eq(labReports.patientId, patient.id)).orderBy(desc(labReports.uploadedAt)),
         db.select().from(healthParameters).where(eq(healthParameters.patientId, patient.id)).orderBy(desc(healthParameters.testDate)),
@@ -62,6 +63,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         db.select().from(doctorPrivateNotes).where(eq(doctorPrivateNotes.patientId, patient.id)).orderBy(desc(doctorPrivateNotes.createdAt)),
         // Fetch all doctors so we can resolve names from doctorId
         db.select({ id: doctors.id, userId: doctors.userId, specialization: doctors.specialization, clinicName: doctors.clinicName }).from(doctors),
+        // Fetch staff-recorded vitals (BP, temp, pulse, SpO2, etc.) newest first
+        db.select().from(patientVitals).where(eq(patientVitals.patientId, patient.id)).orderBy(desc(patientVitals.recordedAt)).limit(5),
     ]);
 
     const doctorMap: Record<string, { name: string; specialization: string; clinicName: string }> = {};
@@ -172,6 +175,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     conditions={conditions}
                     privateNotes={enrichedPrivateNotes}
                     consultationHistory={consultationHistory}
+                    staffVitals={staffVitals.map(v => ({ ...v, recordedAt: v.recordedAt ? v.recordedAt.toISOString() : null }))}
                 />
             </main>
             <Footer />

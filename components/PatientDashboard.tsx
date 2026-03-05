@@ -45,7 +45,8 @@ import {
     Play,
     Settings,
     HelpCircle,
-    Edit2
+    Edit2,
+    Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import HelpSupportView from '@/components/HelpSupportView';
@@ -230,7 +231,7 @@ function HealthCard({ user, patient }: HealthCardProps) {
                         <div className="flex-1 flex flex-col justify-center pb-0.5 md:pb-2">
                             <h3 className="text-base md:text-3xl font-black text-slate-900 leading-tight mb-1 md:mb-2 truncate">{user.name}</h3>
 
-                            <div className="mb-2 md:mb-6">
+                            <div className="mb-2 md:mb-6" id="patient-id">
                                 <span className="text-[6px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5 md:mb-1">Patient ID</span>
                                 <span className="font-mono text-xs md:text-xl font-black text-teal-700 tracking-wider bg-teal-50/80 px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-lg border border-teal-100 inline-block">
                                     {formattedId}
@@ -917,6 +918,13 @@ interface DashboardProps {
             conditionStatus: string;
             createdAt: string | null;
         }>;
+        upcomingAppointments?: Array<{
+            id: string;
+            title: string;
+            eventDate: string;
+            status: string | null;
+            description?: string | null;
+        }>;
     }
 }
 
@@ -1155,13 +1163,36 @@ const AddMedicationModal = ({ patientId, onClose, initialData }: { patientId: st
 };
 
 export default function PatientDashboard({ data }: DashboardProps) {
-    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [], diagnosticConditions = [] } = data;
+    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [], diagnosticConditions = [], upcomingAppointments = [] } = data;
     const router = useRouter();
     const [currentView, setCurrentView] = useState('dashboard');
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
     const [showWelcome, setShowWelcome] = useState(false);
     const [showAddMedication, setShowAddMedication] = useState(false);
     const [editingMed, setEditingMed] = useState<any>(null);
+
+    // Handle voice command ?section= param (from VoiceMic navigation)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get('section');
+        if (!section) return;
+
+        if (section === 'labreports') {
+            setCurrentView('labreports');
+        } else if (section === 'medications' || section === 'health-parameters') {
+            setCurrentView('dashboard');
+            setTimeout(() => {
+                const el = document.getElementById(`section-${section}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    el.classList.add('voice-highlight');
+                    setTimeout(() => el.classList.remove('voice-highlight'), 3000);
+                }
+            }, 400);
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+    }, []);
 
     // Lab Reports State
     const [labReportsData, setLabReportsData] = useState<any[]>([]);
@@ -1434,7 +1465,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         className="space-y-8"
                     >
 
-                        <motion.div variants={itemVariants}>
+                        <motion.div variants={itemVariants} id="section-health-parameters">
                             <h2 className="text-xl font-bold text-slate-900 mb-6">Health Parameters</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                                 <Link href="/dashboard/health?param=Blood%20Glucose">
@@ -1600,6 +1631,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             {/* Medications */}
                             <motion.div
                                 variants={itemVariants}
+                                id="section-medications"
                                 className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden"
                             >
                                 <div className="flex justify-between items-center mb-6 gap-4">
@@ -1796,6 +1828,70 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                 )}
                             </motion.div>
                         </div>
+
+                        {/* Upcoming Appointments (from staff scheduling) */}
+                        {upcomingAppointments.length > 0 && (
+                            <motion.div variants={itemVariants} className="space-y-4">
+                                <h2 className="text-xl font-bold text-slate-900">Upcoming Appointments</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {upcomingAppointments.map((appt) => {
+                                        const hospitalMatch = (appt.description || '').match(/Hospital:\s*(.+)/);
+                                        const hospital = hospitalMatch ? hospitalMatch[1].trim() : null;
+                                        const typeMatch = (appt.description || '').match(/Type:\s*(.+)/);
+                                        const apptType = typeMatch ? typeMatch[1].trim() : 'Appointment';
+                                        const scheduledByMatch = (appt.description || '').match(/Scheduled by:\s*(.+)/);
+                                        const scheduledBy = scheduledByMatch ? scheduledByMatch[1].trim() : null;
+                                        const apptDate = appt.eventDate ? new Date(appt.eventDate) : null;
+                                        const isToday = apptDate ? appt.eventDate === new Date().toISOString().split('T')[0] : false;
+                                        const isPast = apptDate ? appt.eventDate < new Date().toISOString().split('T')[0] : false;
+                                        return (
+                                            <div key={appt.id} className={`bg-white rounded-2xl p-5 border-2 shadow-sm transition-all ${isToday ? 'border-blue-300 shadow-blue-100' :
+                                                isPast ? 'border-slate-200 opacity-70' :
+                                                    'border-slate-100 hover:border-blue-200 hover:shadow-md'
+                                                }`}>
+                                                <div className="flex items-start justify-between gap-2 mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
+                                                            <Calendar className="w-4 h-4 text-blue-600" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900">{apptType}</p>
+                                                            {isToday && <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">TODAY</span>}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border whitespace-nowrap ${appt.status === 'completed' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                                                        appt.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                                        }`}>
+                                                        {appt.status === 'completed' ? '✓ Completed' : appt.status === 'cancelled' ? '✕ Cancelled' : '⏳ Upcoming'}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span className="font-bold text-slate-700">
+                                                            {apptDate ? apptDate.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : appt.eventDate}
+                                                        </span>
+                                                    </div>
+                                                    {hospital && (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                                            <span className="font-bold text-blue-600">{hospital}</span>
+                                                        </div>
+                                                    )}
+                                                    {scheduledBy && (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <Stethoscope className="w-3.5 h-3.5 text-slate-400" />
+                                                            <span className="font-medium text-slate-500">Booked by {scheduledBy}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </motion.div>
+                        )}
 
                         {/* Chronic Conditions */}
                         <motion.div variants={itemVariants} className="space-y-6">

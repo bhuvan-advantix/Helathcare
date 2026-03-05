@@ -37,6 +37,7 @@ export default async function DashboardPage() {
     let healthParams: Record<string, any> = {};
     let patientDoctorNotes: any[] = [];
     let diagnosticConditions: { id: string; conditionName: string; conditionStatus: string; createdAt: string | null }[] = [];
+    let upcomingAppointmentsForDashboard: { id: string; title: string; eventDate: string; status: string | null; description: string | null }[] = [];
 
     if (patientData) {
         await ensureLabReportsSchema();
@@ -97,6 +98,17 @@ export default async function DashboardPage() {
             .orderBy(desc(timelineEvents.createdAt))
             .limit(10);
 
+        // Fetch staff-scheduled upcoming appointments (visible to patient)
+        const staffAppointments = await db.select()
+            .from(timelineEvents)
+            .where(and(
+                eq(timelineEvents.userId, userId),
+                eq(timelineEvents.createdBy, 'staff'),
+                eq(timelineEvents.eventType, 'appointment')
+            ))
+            .orderBy(desc(timelineEvents.eventDate))
+            .limit(20);
+
         // For each event, try to get the doctor's name
         const doctorIds = [...new Set(doctorEvents.map(e => e.doctorId).filter(Boolean))];
         const doctorRecords: Record<string, any> = {};
@@ -137,6 +149,15 @@ export default async function DashboardPage() {
             note: event.description || '',
             createdAt: event.createdAt?.toISOString() || null,
         }));
+
+        // Map staff appointments for patient view
+        upcomingAppointmentsForDashboard = staffAppointments.map(e => ({
+            id: e.id,
+            title: e.title,
+            eventDate: e.eventDate,
+            status: e.status,
+            description: e.description,
+        }));
     }
 
     // Prepare data object (serializing dates/etc if needed)
@@ -165,6 +186,7 @@ export default async function DashboardPage() {
         healthParameters: healthParams,
         doctorNotes: patientDoctorNotes,
         diagnosticConditions,
+        upcomingAppointments: upcomingAppointmentsForDashboard,
     };
 
     return <PatientDashboard data={dashboardData} />;

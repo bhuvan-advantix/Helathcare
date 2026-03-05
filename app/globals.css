@@ -96,3 +96,26 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ── Voice Command Highlight ─────────────────────────────── */
+@keyframes voiceHighlight {
+  0%   { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); outline: 3px solid #f59e0b; }
+  50%  { box-shadow: 0 0 0 14px rgba(251, 191, 36, 0); outline: 3px solid #fbbf24; }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);   outline: 3px solid transparent; }
+}
+
+.voice-highlight {
+  animation: voiceHighlight 1s ease-out 3;
+  border-radius: 12px;
+  outline-offset: 4px;
+}
+
+/* ── Mic pulse animation ─────────────────────────────────── */
+@keyframes pulseMic {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+
+.animate-pulse-mic {
+  animation: pulseMic 1.2s ease-in-out infinite;
+}

@@ -12,12 +12,15 @@ import {
     updateTicketStatusAction, createLabAccountAction, toggleLabAccountAction,
     adminLogout, adminUploadLabReport
 } from '@/app/actions/admin';
+import {
+    createStaffAccountAction, toggleStaffAccountAction, getAllStaffAccounts
+} from '@/app/actions/staff';
 import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AdminData {
-    stats: { patientCount: number; doctorCount: number; pendingDoctors: number; bannedUsers: number; openTickets: number; labCount: number; totalMeds: number; totalLabReports: number; };
-    doctors: any[]; patients: any[]; tickets: any[]; labs: any[];
+    stats: { patientCount: number; doctorCount: number; pendingDoctors: number; bannedUsers: number; openTickets: number; labCount: number; totalMeds: number; totalLabReports: number; staffCount: number; };
+    doctors: any[]; patients: any[]; tickets: any[]; labs: any[]; staff: any[];
 }
 
 // ─── Confirm Popup ─────────────────────────────────────────────────────────────
@@ -407,6 +410,46 @@ const CreateLabModal = ({ onClose, onSuccess }: { onClose: () => void; onSuccess
     );
 };
 
+// ─── Create Staff Modal ───────────────────────────────────────────────────────
+const CreateStaffModal = ({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) => {
+    const [form, setForm] = useState({ staffName: '', email: '', password: '', hospitalName: '', phone: '' });
+    const [showPass, setShowPass] = useState(false);
+    const [error, setError] = useState('');
+    const [isPending, startTransition] = useTransition();
+    const handle = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.staffName || !form.email || !form.password) { setError('Name, email, and password are required.'); return; }
+        startTransition(async () => {
+            const r = await createStaffAccountAction(form);
+            if (r.success) { onSuccess(); onClose(); } else setError(r.error || 'Failed');
+        });
+    };
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-black text-slate-900">Create Staff Account</h2><button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button></div>
+                <form onSubmit={handle} className="space-y-3">
+                    <input type="text" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-teal-500" placeholder="Full Name *" value={form.staffName} onChange={e => setForm({ ...form, staffName: e.target.value })} />
+                    <input type="email" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-teal-500" placeholder="Login Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                    <div className="relative">
+                        <input type={showPass ? 'text' : 'password'} className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-teal-500 pr-10" placeholder="Password *" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <input className="border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-teal-500" placeholder="Hospital / Clinic" value={form.hospitalName} onChange={e => setForm({ ...form, hospitalName: e.target.value })} />
+                        <input className="border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-teal-500" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    </div>
+                    {error && <p className="text-red-500 text-xs font-bold bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+                    <div className="flex gap-3 pt-1">
+                        <button type="button" onClick={onClose} className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-slate-700 font-bold text-sm">Cancel</button>
+                        <button type="submit" disabled={isPending} className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl font-bold text-sm disabled:opacity-60">{isPending ? 'Creating...' : 'Create'}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 const OverviewTab = ({ data, go }: { data: AdminData; go: (t: string) => void }) => (
     <div className="space-y-6">
@@ -458,6 +501,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('overview');
     const [showCreateLab, setShowCreateLab] = useState(false);
+    const [showCreateStaff, setShowCreateStaff] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [ticketFilter, setTicketFilter] = useState('all');
 
@@ -470,6 +514,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
         { id: 'patients', label: 'Patients', icon: Users },
         { id: 'tickets', label: 'Tickets', count: data.stats.openTickets, icon: TicketCheck },
         { id: 'labs', label: 'Lab Accounts', icon: FlaskConical },
+        { id: 'staff', label: 'Staff Accounts', icon: ShieldCheck },
     ];
 
     const filteredTickets = ticketFilter === 'all' ? data.tickets : data.tickets.filter((t: any) => t.status === ticketFilter);
@@ -477,6 +522,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
     return (
         <div className="min-h-screen bg-slate-50">
             {showCreateLab && <CreateLabModal onClose={() => setShowCreateLab(false)} onSuccess={refresh} />}
+            {showCreateStaff && <CreateStaffModal onClose={() => setShowCreateStaff(false)} onSuccess={refresh} />}
 
             {/* Header */}
             <header className="bg-white border-b-2 border-slate-100 sticky top-0 z-30">
@@ -564,6 +610,26 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                         )}
                     </div>
                 )}
+
+                {activeTab === 'staff' && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div><h2 className="text-2xl font-black text-slate-900">Staff Accounts</h2><p className="text-slate-500 text-sm">{(data.staff ?? []).length} front desk / nursing staff account(s)</p></div>
+                            <button onClick={() => setShowCreateStaff(true)} className="flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-sm"><Plus className="w-4 h-4" /> Add Staff</button>
+                        </div>
+                        {(data.staff ?? []).length === 0 ? (
+                            <div className="bg-white rounded-2xl border-2 border-slate-100 p-12 text-center">
+                                <ShieldCheck className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                <p className="font-bold text-slate-500">No staff accounts yet.</p><p className="text-xs text-slate-400 mt-1">Create login credentials for front desk and nursing staff.</p>
+                                <button onClick={() => setShowCreateStaff(true)} className="mt-4 px-5 py-2.5 bg-teal-600 text-white rounded-xl font-bold text-sm">+ Create First Staff Account</button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {(data.staff ?? []).map((s: any) => <StaffAccountRow key={s.id} staff={s} refresh={refresh} />)}
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
         </div>
     );
@@ -597,3 +663,33 @@ function LabAccountRow({ lab, refresh }: { lab: any; refresh: () => void }) {
         </div>
     );
 }
+
+// ─── Staff Account Row ─────────────────────────────────────────────────────────
+function StaffAccountRow({ staff, refresh }: { staff: any; refresh: () => void }) {
+    const [isPending, startTransition] = useTransition();
+    const toggle = (active: boolean) => startTransition(async () => { await toggleStaffAccountAction(staff.id, active); refresh(); });
+
+    return (
+        <div className={`bg-white rounded-2xl border-2 p-4 sm:p-5 shadow-sm ${staff.isActive ? 'border-slate-100' : 'border-slate-200 opacity-70'}`}>
+            <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-teal-50 rounded-2xl flex items-center justify-center flex-shrink-0 border-2 border-teal-100">
+                    <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-black text-slate-900 text-sm sm:text-base truncate">{staff.staffName}</p>
+                    <p className="text-xs text-slate-500 truncate">{staff.email}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                        {[staff.hospitalName, staff.phone].filter(Boolean).join(' • ') || 'No hospital assigned'} &bull; Added {new Date(staff.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    <Badge status={staff.isActive ? 'active' : 'disabled'} />
+                    {staff.isActive
+                        ? <button disabled={isPending} onClick={() => toggle(false)} className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-red-50 text-red-600 border-2 border-red-200 rounded-xl text-[11px] sm:text-xs font-bold hover:bg-red-100 disabled:opacity-50"><ShieldOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Disable</button>
+                        : <button disabled={isPending} onClick={() => toggle(true)} className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-xl text-[11px] sm:text-xs font-bold hover:bg-emerald-100 disabled:opacity-50"><ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Enable</button>}
+                </div>
+            </div>
+        </div>
+    );
+}
+

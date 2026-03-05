@@ -320,3 +320,32 @@ export const labAccounts = sqliteTable('lab_accounts', {
     isActive: integer('is_active', { mode: 'boolean' }).default(true),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+// Staff Accounts (Front Desk / Nurse) — Separate login system, created by Admin
+export const staffAccounts = sqliteTable('staff_accounts', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    staffName: text('staff_name').notNull(),   // Full name of the staff member
+    email: text('email').notNull().unique(),   // Login email
+    password: text('password').notNull(),      // Hashed password
+    role: text('role').notNull().default('staff'), // 'staff' (covers both front desk & nurse duties)
+    hospitalName: text('hospital_name'),       // Which clinic/hospital they belong to
+    phone: text('phone'),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Patient vitals recorded by staff (BP, temp, weight, height, pulse, SpO2)
+export const patientVitals = sqliteTable('patient_vitals', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    bloodPressure: text('blood_pressure'),     // e.g., "120/80"
+    temperature: text('temperature'),          // e.g., "98.6°F"
+    weight: text('weight'),                    // e.g., "65 kg"
+    height: text('height'),                    // e.g., "170 cm"
+    pulseRate: text('pulse_rate'),             // e.g., "72 bpm"
+    spO2: text('spo2'),                        // e.g., "98%"
+    recordedBy: text('recorded_by'),           // Staff name
+    notes: text('notes'),                      // Any additional notes
+    recordedAt: integer('recorded_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
