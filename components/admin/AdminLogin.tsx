@@ -103,7 +103,7 @@ export default function AdminLogin() {
                         {/* Email */}
                         <div>
                             <label className="text-xs font-bold text-slate-600 uppercase tracking-widest block mb-2">Admin Email</label>
-                            <div className="relative">
+                            <div className="relative" suppressHydrationWarning>
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="email"
@@ -119,7 +119,7 @@ export default function AdminLogin() {
                         {/* Password */}
                         <div>
                             <label className="text-xs font-bold text-slate-600 uppercase tracking-widest block mb-2">Password</label>
-                            <div className="relative">
+                            <div className="relative" suppressHydrationWarning>
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type={showPass ? 'text' : 'password'}
