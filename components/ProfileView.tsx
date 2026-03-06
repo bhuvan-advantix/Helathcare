@@ -367,7 +367,7 @@ export default function ProfileView({ user, patient }: ProfileViewProps) {
                 </div>
 
                 {/* Main Profile Card */}
-                <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+                <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden tour-profile-settings">
                     <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-teal-500 to-emerald-500 opacity-10"></div>
 
                     <div className="relative flex flex-col md:flex-row items-start gap-8 pt-4">

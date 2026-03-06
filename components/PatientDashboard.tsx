@@ -1476,7 +1476,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         className="space-y-8"
                     >
 
-                        <motion.div variants={itemVariants} id="section-health-parameters">
+                        <motion.div variants={itemVariants} id="section-health-parameters" className="tour-health-parameters">
                             <div className="flex justify-between items-end mb-6">
                                 <h2 className="text-xl font-bold text-slate-900">Health Parameters</h2>
                                 <Link
@@ -1536,7 +1536,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             {/* Left Column: Health Card */}
                             <motion.div
                                 variants={itemVariants}
-                                className="lg:col-span-2 flex flex-col"
+                                className="lg:col-span-2 flex flex-col tour-health-card"
                             >
                                 <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-200/60 p-6 md:p-8 shadow-sm flex flex-col h-full relative overflow-hidden group">
 
@@ -1568,7 +1568,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             {/* Right Column: Upload */}
                             <motion.div
                                 variants={itemVariants}
-                                className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col"
+                                className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col tour-doctor-notes"
                             >
                                 <h2 className="text-xl font-bold text-slate-900 mb-6">Doctor Notes</h2>
                                 <div className="flex-grow flex flex-col gap-3 h-[254px] overflow-y-scroll pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -1652,7 +1652,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             <motion.div
                                 variants={itemVariants}
                                 id="section-medications"
-                                className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden"
+                                className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden tour-current-medications"
                             >
                                 <div className="flex justify-between items-center mb-6 gap-4">
                                     <h2 className="text-xl font-bold text-slate-900 leading-tight">Current Medications</h2>
@@ -1806,7 +1806,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             {/* Upload Health Reports (Moved Right) */}
                             <motion.div
                                 variants={itemVariants}
-                                className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col"
+                                className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col tour-upload-report"
                             >
                                 <h2 className="text-xl font-bold text-slate-900 mb-6">Upload Lab Reports</h2>
                                 <label

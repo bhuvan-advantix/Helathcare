@@ -88,7 +88,7 @@ export default function HealthBot() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="absolute bottom-48 sm:bottom-28 right-4 sm:right-6 z-[9999] p-4 bg-teal-600 text-white rounded-full shadow-xl hover:bg-teal-700 transition-all duration-300 hover:scale-110 flex items-center justify-center group"
+                    className="absolute bottom-48 sm:bottom-28 right-4 sm:right-6 z-[9000] p-4 bg-teal-600 text-white rounded-full shadow-xl hover:bg-teal-700 transition-all duration-300 hover:scale-110 flex items-center justify-center group tour-ai-chatbot"
                 >
                     <Bot className="w-7 h-7" />
                     <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap group-hover:pl-2 text-sm font-semibold">

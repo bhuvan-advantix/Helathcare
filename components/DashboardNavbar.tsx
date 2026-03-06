@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
+import PatientTour from '@/components/patient/PatientTour';
 
 interface DashboardNavbarProps {
     user: any;
@@ -283,6 +284,7 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
                     </div>
                 )}
             </AnimatePresence>
+            <PatientTour />
         </>
     );
 }

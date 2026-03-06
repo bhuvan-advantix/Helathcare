@@ -211,7 +211,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                         <button
                             onClick={handleDownload}
                             disabled={downloading}
-                            className="w-full md:w-auto px-4 py-2.5 md:px-6 md:py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm shadow-teal-200 text-sm md:text-base"
+                            className="w-full md:w-auto px-4 py-2.5 md:px-6 md:py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm shadow-teal-200 text-sm md:text-base tour-download-report"
                         >
                             {downloading ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Download className="w-4 h-4 md:w-5 md:h-5" />}
                             <span>Download Original PDF</span>
@@ -341,7 +341,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                                         {category.tests.length} tests
                                                     </span>
                                                     {/* AI badge — visible on ALL screen sizes */}
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg whitespace-nowrap">
+                                                    <span className="flex items-center gap-1 text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg whitespace-nowrap tour-ai-analysis">
                                                         <Sparkles className="w-3 h-3 flex-shrink-0" />
                                                         <span className="hidden sm:inline">AI Analysis — tap any row</span>
                                                         <span className="sm:hidden">AI</span>
@@ -375,6 +375,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                                                             ${isAnalysisOpen ? 'bg-white border-b-0' : 'hover:bg-slate-50'}
                                                                             ${isAbnormal ? 'border-l-[6px] border-l-red-500 bg-red-50/10' : ''}
                                                                             ${!isAbnormal && isAnalysisOpen ? 'border-l-[6px] border-l-teal-500' : ''}
+                                                                            ${idx === 0 && testIdx === 0 ? 'tour-ai-parameter-row' : ''}
                                                                         `}
                                                                     >
                                                                         <td className="px-2 py-3 md:px-6 md:py-5 break-words align-top">

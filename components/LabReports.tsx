@@ -445,7 +445,7 @@ export default function LabReports({
                                                                                                             <button
                                                                                                                 onClick={() => handleAnalyze(testKey, test)}
                                                                                                                 disabled={isLoading}
-                                                                                                                className={`p-2 rounded-lg transition-all ${isAnalysisOpen
+                                                                                                                className={`p-2 rounded-lg transition-all tour-ai-analysis ${isAnalysisOpen
                                                                                                                     ? 'bg-blue-100 text-blue-700 shadow-inner'
                                                                                                                     : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'
                                                                                                                     }`}

@@ -184,7 +184,7 @@ export default function HealthParameters({ history, analyses }: { history: any[]
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm"
+                className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm tour-history-charts"
             >
                 <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 mb-3 sm:mb-4 md:mb-6">Health Trends Overview</h3>
 

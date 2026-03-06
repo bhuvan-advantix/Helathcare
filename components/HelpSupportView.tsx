@@ -272,7 +272,7 @@ export default function HelpSupportView() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="max-w-7xl mx-auto space-y-8 md:space-y-12"
+            className="max-w-7xl mx-auto space-y-8 md:space-y-12 tour-help-support"
         >
             {/* Header */}
             <div className="text-center px-4">
