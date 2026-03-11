@@ -15,6 +15,13 @@
       "when": 1772865895185,
       "tag": "0001_yellow_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773223694204,
+      "tag": "0002_jittery_karma",
+      "breakpoints": true
     }
   ]
 }
