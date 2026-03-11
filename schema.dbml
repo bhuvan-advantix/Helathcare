@@ -1,0 +1,292 @@
+table accounts {
+  userId text [not null]
+  type text [not null]
+  provider text [not null]
+  providerAccountId text [not null]
+  refresh_token text
+  access_token text
+  expires_at integer
+  token_type text
+  scope text
+  id_token text
+  session_state text
+
+  indexes {
+    (provider, providerAccountId) [pk]
+  }
+}
+
+table deleted_accounts {
+  id text [pk, not null]
+  original_user_id text
+  name text
+  email text
+  role text
+  custom_id text
+  reason text
+  deleted_at integer
+  profile_snapshot text
+}
+
+table doctor_patient_relations {
+  id text [pk, not null]
+  doctor_id text [not null]
+  patient_id text [not null]
+  added_at integer
+
+  indexes {
+    (doctor_id, patient_id) [name: 'doctor_patient_unique', unique]
+  }
+}
+
+table doctor_private_notes {
+  id text [pk, not null]
+  doctor_id text [not null]
+  patient_id text [not null]
+  note_content text [not null]
+  created_at integer
+  updated_at integer
+}
+
+table doctors {
+  id text [pk, not null]
+  user_id text [not null]
+  dob text
+  age integer
+  gender text
+  phone_number text
+  address text
+  city text
+  marital_status text
+  emergency_contact_name text
+  emergency_contact_phone text
+  guardian_name text
+  guardian_relation text
+  specialization text [not null]
+  clinic_name text
+  license_number text [not null]
+  experience_years integer
+  degree text
+  hospital_timing text
+  working_days text
+  bio text
+  approval_status text [default: 'approved']
+  created_at integer
+}
+
+table health_parameters {
+  id text [pk, not null]
+  patient_id text [not null]
+  lab_report_id text
+  parameter_name text [not null]
+  value text [not null]
+  unit text
+  reference_range text
+  status text
+  test_date text
+  created_at integer
+}
+
+table lab_accounts {
+  id text [pk, not null]
+  lab_name text [not null]
+  email text [not null, unique]
+  password text [not null]
+  city text
+  phone text
+  is_active integer [default: true]
+  created_at integer
+}
+
+table lab_orders {
+  id text [pk, not null]
+  patient_id text [not null]
+  doctor_id text
+  doctor_name text
+  name text [not null]
+  type text [not null, default: 'lab']
+  notes text
+  is_paid integer [default: false]
+  paid_at integer
+  paid_by text
+  ordered_at integer
+  ordered_date text
+}
+
+table lab_reports {
+  id text [pk, not null]
+  patient_id text [not null]
+  file_name text [not null]
+  report_date text
+  lab_name text
+  patient_name text
+  doctor_name text
+  extracted_data text [not null]
+  raw_text text
+  analysis text
+  file_size integer
+  page_count integer
+  file_data text
+  cloudinary_url text
+  uploaded_at integer
+}
+
+table medications {
+  id text [pk, not null]
+  patient_id text [not null]
+  name text [not null]
+  dosage text
+  purpose text
+  start_date text
+  frequency text
+  duration_days integer
+  status text [default: 'Active']
+  added_by text [default: 'Self']
+  created_at integer
+}
+
+table patient_allergies {
+  id text [pk, not null]
+  patient_id text [not null]
+  allergen text [not null]
+  severity text
+  reaction text
+  status text [default: 'active']
+  added_by text [default: 'patient']
+  doctor_id text
+  created_at integer
+}
+
+table patient_conditions {
+  id text [pk, not null]
+  patient_id text [not null]
+  condition_name text [not null]
+  diagnosed_date text
+  status text [default: 'active']
+  added_by text [default: 'patient']
+  doctor_id text
+  created_at integer
+}
+
+table patient_diagnostics {
+  id text [pk, not null]
+  patient_id text [not null]
+  doctor_id text
+  condition_name text [not null]
+  condition_status text [default: 'stable']
+  nodes text [not null, default: `[]`]
+  clinical_notes text
+  treatment_plan text
+  created_at integer
+  updated_at integer
+}
+
+table patient_vitals {
+  id text [pk, not null]
+  patient_id text [not null]
+  blood_pressure text
+  temperature text
+  weight text
+  height text
+  pulse_rate text
+  spo2 text
+  recorded_by text
+  notes text
+  recorded_at integer
+}
+
+table patients {
+  id text [pk, not null]
+  user_id text [not null]
+  dob text
+  age integer
+  gender text
+  phone_number text
+  address text
+  city text
+  marital_status text
+  emergency_contact_name text
+  emergency_contact_phone text
+  guardian_name text
+  guardian_relation text
+  blood_group text
+  height text
+  weight text
+  allergies text
+  current_medications text
+  past_surgeries text
+  chronic_conditions text
+  lifestyle text
+  medical_history text
+  created_at integer
+}
+
+table sessions {
+  sessionToken text [pk, not null]
+  userId text [not null]
+  expires integer [not null]
+}
+
+table staff_accounts {
+  id text [pk, not null]
+  staff_name text [not null]
+  email text [not null, unique]
+  password text [not null]
+  role text [not null, default: 'staff']
+  hospital_name text
+  phone text
+  is_active integer [default: true]
+  created_at integer
+}
+
+table support_tickets {
+  id text [pk, not null]
+  ticket_number text [not null, unique]
+  user_name text [not null]
+  user_email text [not null]
+  selected_page text [not null]
+  message text [not null]
+  status text [not null, default: 'open']
+  priority text [default: 'medium']
+  created_at integer
+  updated_at integer
+  resolved_at integer
+  user_id text
+}
+
+table timeline_events {
+  id text [pk, not null]
+  user_id text [not null]
+  title text [not null]
+  description text
+  event_date text [not null]
+  event_type text [not null]
+  status text [default: 'pending']
+  report_id text
+  doctor_id text
+  created_by text [default: 'patient']
+  created_at integer
+}
+
+table users {
+  id text [pk, not null]
+  name text
+  email text [not null, unique]
+  emailVerified integer
+  image text
+  password text
+  role text [not null, default: 'pending']
+  is_onboarded integer [default: false]
+  custom_id text [unique]
+  is_banned integer [default: false]
+}
+
+table verificationToken {
+  identifier text [not null]
+  token text [not null]
+  expires integer [not null]
+
+  indexes {
+    (identifier, token) [pk]
+  }
+}
