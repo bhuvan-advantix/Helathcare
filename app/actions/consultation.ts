@@ -10,8 +10,10 @@ import {
     timelineEvents,
     doctorPrivateNotes,
     doctors,
-    users
+    users,
+    prescriptions
 } from "@/db/schema";
+import { ensurePrescriptionsSchema } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -76,18 +78,46 @@ export async function finishConsultation(
                 .where(eq(patients.id, patientId));
         }
 
-        // 2. Insert Vitals
+        // 2. Insert Vitals — skip only if a record for this parameter already exists TODAY.
+        //    This prevents same-day duplicates (e.g., doctor saves twice in one session)
+        //    while still recording every new day's reading — even if the value hasn't changed
+        //    (e.g., BP 128 on Monday AND 128 on Tuesday are both valid, separate records).
         for (const vital of data.vitals) {
-            if (vital.value && vital.value.trim() !== '') {
-                await db.insert(healthParameters).values({
-                    patientId: patientId,
-                    parameterName: vital.name,
-                    value: vital.value,
-                    unit: vital.unit,
-                    testDate: new Date().toISOString(),
-                    status: 'normal'
-                });
-            }
+            const trimmedValue = (vital.value || '').trim();
+            if (!trimmedValue) continue; // skip empty fields entirely
+
+            // Check if this parameter was already recorded today
+            const todayStart = `${todayISO}T00:00:00.000Z`;
+            const todayEnd   = `${todayISO}T23:59:59.999Z`;
+
+            const existingToday = await db
+                .select()
+                .from(healthParameters)
+                .where(
+                    and(
+                        eq(healthParameters.patientId, patientId),
+                        eq(healthParameters.parameterName, vital.name)
+                    )
+                )
+                .all();
+
+            // Filter in JS since SQLite text comparison on ISO string works well
+            const alreadySavedToday = existingToday.some(p => {
+                const d = (p.testDate || '').slice(0, 10);
+                return d === todayISO;
+            });
+
+            if (alreadySavedToday) continue; // don't double-save on the same day
+
+            // New day → always record, even if value matches a previous day's reading
+            await db.insert(healthParameters).values({
+                patientId: patientId,
+                parameterName: vital.name,
+                value: trimmedValue,
+                unit: vital.unit,
+                testDate: new Date().toISOString(),
+                status: 'normal'
+            });
         }
 
         // 3. Insert Medications
@@ -235,5 +265,70 @@ export async function appendPatientClinicalContext(
     } catch (error) {
         console.error("Failed to append clinical context:", error);
         return { success: false, error: "Failed to update patient record" };
+    }
+}
+
+/**
+ * Save a generated prescription PDF to the DB.
+ * Called after successful consultation save + Cloudinary upload.
+ */
+export async function savePrescription(
+    patientId: string,
+    cloudinaryUrl: string,
+    consultationData: Record<string, any>
+): Promise<{ success: boolean; prescriptionId?: string; error?: string }> {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'doctor') {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    try {
+        await ensurePrescriptionsSchema();
+
+        const [doctor] = await db.select().from(doctors).where(eq(doctors.userId, session.user.id)).limit(1);
+        if (!doctor) return { success: false, error: "Doctor profile not found" };
+
+        const [inserted] = await db.insert(prescriptions).values({
+            patientId,
+            doctorId: doctor.id,
+            consultationData,
+            cloudinaryUrl,
+        }).returning({ id: prescriptions.id });
+
+        revalidatePath(`/dashboard`);
+        revalidatePath(`/doctor/patient/${patientId}`);
+
+        return { success: true, prescriptionId: inserted.id };
+    } catch (error) {
+        console.error("Failed to save prescription:", error);
+        return { success: false, error: "Failed to save prescription" };
+    }
+}
+
+/**
+ * Fetch all prescriptions for a patient (used in patient dashboard).
+ */
+export async function getPrescriptionsForPatient(
+    patientId: string
+): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+        await ensurePrescriptionsSchema();
+
+        const rows = await db
+            .select()
+            .from(prescriptions)
+            .where(eq(prescriptions.patientId, patientId));
+
+        // Sort descending by prescribed_at
+        rows.sort((a, b) => {
+            const aTime = a.prescribedAt ? new Date(a.prescribedAt).getTime() : 0;
+            const bTime = b.prescribedAt ? new Date(b.prescribedAt).getTime() : 0;
+            return bTime - aTime;
+        });
+
+        return { success: true, data: rows };
+    } catch (error) {
+        console.error("Failed to fetch prescriptions:", error);
+        return { success: false, error: "Failed to fetch prescriptions" };
     }
 }

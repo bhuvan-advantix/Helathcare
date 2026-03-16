@@ -368,3 +368,18 @@ export const labOrders = sqliteTable('lab_orders', {
     orderedAt: integer('ordered_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
     orderedDate: text('ordered_date'),          // YYYY-MM-DD for easy filtering
 });
+
+// Prescriptions Table — Generated when doctor clicks "Save & Print"
+export const prescriptions = sqliteTable('prescriptions', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
+
+    // Serialized consultation snapshot (JSON) — fully dynamic, never hardcoded
+    consultationData: text('consultation_data', { mode: 'json' }).$type<any>().notNull(),
+
+    // Cloudinary URL for the generated PDF
+    cloudinaryUrl: text('cloudinary_url').notNull(),
+
+    prescribedAt: integer('prescribed_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});

@@ -7,6 +7,7 @@ import { eq, desc, and } from "drizzle-orm";
 import PatientDashboard from '@/components/PatientDashboard';
 import { getLatestHealthParameters } from '@/app/actions/labReports';
 import { autoStopExpiredMedications } from '@/app/actions/medications';
+import { getPrescriptionsForPatient } from '@/app/actions/consultation';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
@@ -38,6 +39,7 @@ export default async function DashboardPage() {
     let patientDoctorNotes: any[] = [];
     let diagnosticConditions: { id: string; conditionName: string; conditionStatus: string; createdAt: string | null }[] = [];
     let upcomingAppointmentsForDashboard: { id: string; title: string; eventDate: string; status: string | null; description: string | null }[] = [];
+    let patientPrescriptions: any[] = [];
 
     if (patientData) {
         await ensureLabReportsSchema();
@@ -158,6 +160,15 @@ export default async function DashboardPage() {
             status: e.status,
             description: e.description,
         }));
+
+        // Fetch prescriptions for this patient
+        const prescriptionsResult = await getPrescriptionsForPatient(patientData.id);
+        if (prescriptionsResult.success && prescriptionsResult.data) {
+            patientPrescriptions = prescriptionsResult.data.map(p => ({
+                ...p,
+                prescribedAt: p.prescribedAt ? new Date(p.prescribedAt).toISOString() : null,
+            }));
+        }
     }
 
     // Prepare data object (serializing dates/etc if needed)
@@ -187,6 +198,7 @@ export default async function DashboardPage() {
         doctorNotes: patientDoctorNotes,
         diagnosticConditions,
         upcomingAppointments: upcomingAppointmentsForDashboard,
+        prescriptions: patientPrescriptions,
     };
 
     return <PatientDashboard data={dashboardData} />;

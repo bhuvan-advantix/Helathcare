@@ -47,7 +47,8 @@ import {
     HelpCircle,
     Edit2,
     Calendar,
-    ArrowUpRight
+    ArrowUpRight,
+    Download
 } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import HelpSupportView from '@/components/HelpSupportView';
@@ -758,6 +759,7 @@ interface CompactFolderCardProps {
     images: string[];
     href?: string;
     className?: string;
+    theme?: 'teal' | 'blue';
 }
 
 const CompactFolderCard = ({
@@ -767,11 +769,15 @@ const CompactFolderCard = ({
     images = [],
     href,
     className,
+    theme = 'teal',
 }: CompactFolderCardProps) => {
+    const isBlue = theme === 'blue';
+
     const CardContent = (
         <motion.div
             className={cn(
-                "group flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-100 transition-all cursor-pointer",
+                "group flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer",
+                isBlue ? "hover:border-blue-100" : "hover:border-teal-100",
                 className
             )}
             initial="rest"
@@ -782,8 +788,14 @@ const CompactFolderCard = ({
             <div className="relative w-16 h-14 perspective-1000 flex-shrink-0">
 
                 {/* Back Plate */}
-                <div className="absolute top-0 left-0 w-6 h-2 bg-teal-200 rounded-t-sm z-0 transition-transform group-hover:-translate-y-0.5" />
-                <div className="absolute top-2 bottom-0 left-0 right-0 bg-teal-200 rounded-b-md rounded-tr-md z-0 shadow-sm" />
+                <div className={cn(
+                    "absolute top-0 left-0 w-6 h-2 rounded-t-sm z-0 transition-transform group-hover:-translate-y-0.5",
+                    isBlue ? "bg-blue-200" : "bg-teal-200"
+                )} />
+                <div className={cn(
+                    "absolute top-2 bottom-0 left-0 right-0 rounded-b-md rounded-tr-md z-0 shadow-sm",
+                    isBlue ? "bg-blue-200" : "bg-teal-200"
+                )} />
 
                 {/* Documents inside - Scaled down */}
                 <div className="absolute left-1.5 right-1.5 bottom-1 top-3 z-10 flex justify-center items-end">
@@ -812,15 +824,24 @@ const CompactFolderCard = ({
                 </div>
 
                 {/* Front Pocket */}
-                <div className="absolute bottom-0 left-0 right-0 h-10 bg-teal-400 rounded-md shadow-[0_2px_4px_-1px_rgba(0,0,0,0.1)] z-20 transition-transform origin-bottom group-hover:rotate-x-10 border-t border-teal-300/50 flex items-center justify-center">
+                <div className={cn(
+                    "absolute bottom-0 left-0 right-0 h-10 rounded-md shadow-[0_2px_4px_-1px_rgba(0,0,0,0.1)] z-20 transition-transform origin-bottom group-hover:rotate-x-10 border-t flex items-center justify-center",
+                    isBlue ? "bg-blue-400 border-blue-300/50" : "bg-teal-400 border-teal-300/50"
+                )}>
                     {/* Mini Detail */}
-                    <div className="w-4 h-0.5 bg-teal-600/20 rounded-full" />
+                    <div className={cn(
+                        "w-4 h-0.5 rounded-full",
+                        isBlue ? "bg-blue-600/20" : "bg-teal-600/20"
+                    )} />
                 </div>
             </div>
 
             {/* Right: Content Content */}
             <div className="flex-grow min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-teal-700 transition-colors">{title}</h3>
+                <h3 className={cn(
+                    "text-sm font-bold text-slate-900 truncate transition-colors",
+                    isBlue ? "group-hover:text-blue-700" : "group-hover:text-teal-700"
+                )}>{title}</h3>
                 <p className="text-xs font-medium text-slate-600 truncate">{hospital}</p>
                 <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
                     <span>{date}</span>
@@ -935,6 +956,14 @@ interface DashboardProps {
             eventDate: string;
             status: string | null;
             description?: string | null;
+        }>;
+        prescriptions?: Array<{
+            id: string;
+            patientId: string;
+            doctorId: string | null;
+            consultationData: any;
+            cloudinaryUrl: string;
+            prescribedAt: string | null;
         }>;
     }
 }
@@ -1174,7 +1203,7 @@ const AddMedicationModal = ({ patientId, onClose, initialData }: { patientId: st
 };
 
 export default function PatientDashboard({ data }: DashboardProps) {
-    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [], diagnosticConditions = [], upcomingAppointments = [] } = data;
+    const { user, patient, healthParameters = {}, doctorNotes: propDoctorNotes = [], diagnosticConditions = [], upcomingAppointments = [], prescriptions = [] } = data;
     const router = useRouter();
     const [currentView, setCurrentView] = useState('dashboard');
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
@@ -1849,6 +1878,82 @@ export default function PatientDashboard({ data }: DashboardProps) {
                             </motion.div>
                         </div>
 
+
+                        {/* Prescriptions */}
+                        <motion.div variants={itemVariants} className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-slate-900">My Prescriptions</h2>
+                                {prescriptions.length > 0 && (
+                                    <span className="text-xs font-bold text-teal-600 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
+                                        {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''}
+                                    </span>
+                                )}
+                            </div>
+
+                            {prescriptions.length === 0 ? (
+                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 flex flex-col items-center justify-center text-center gap-3">
+                                    <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center border border-teal-100">
+                                        <FileText className="w-7 h-7 text-teal-400" />
+                                    </div>
+                                    <h3 className="font-bold text-slate-700 text-base">No prescriptions yet</h3>
+                                    <p className="text-sm text-slate-400 max-w-xs">
+                                        Your doctor's prescriptions will appear here after a consultation. You can download them as PDF anytime.
+                                    </p>
+                                </div>
+                            ) : (
+                                (() => {
+                                    const defaultImages = [
+                                        "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?auto=format&fit=crop&q=80&w=200",
+                                        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=200",
+                                        "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=200",
+                                    ];
+
+                                    return (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                            {prescriptions.map((rx) => {
+                                                const snapshot   = rx.consultationData || {};
+                                                const rawDate    = snapshot.date || rx.prescribedAt;
+                                                let dateStr      = '';
+                                                if (rawDate) {
+                                                    const d = new Date(rawDate);
+                                                    if (!isNaN(d.getTime())) {
+                                                        const dp = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                        dateStr = dp;
+                                                    }
+                                                }
+
+                                                const doctorName = snapshot.doctorName
+                                                    ? `Dr. ${snapshot.doctorName}`
+                                                    : 'Doctor';
+                                                const clinicName = snapshot.clinicName || snapshot.doctorSpecialization || '';
+
+                                                return (
+                                                    <div key={rx.id} className="relative w-full group">
+                                                        <CompactFolderCard
+                                                            title="Prescription.pdf"
+                                                            hospital={doctorName + (clinicName ? ` • ${clinicName}` : '')}
+                                                            date={dateStr || "Unknown Date"}
+                                                            images={defaultImages}
+                                                            href={`/api/prescription/${rx.id}?mode=view`}
+                                                            className="w-full pr-12" // Leave space for download icon
+                                                            theme="blue"
+                                                        />
+                                                        {/* Direct Download Icon */}
+                                                        <a
+                                                            href={`/api/prescription/${rx.id}?mode=download`}
+                                                            className="absolute right-4 top-1/2 -translate-y-1/2 shrink-0 p-2 text-slate-400 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors z-10"
+                                                            title="Download PDF"
+                                                        >
+                                                            <Download className="w-5 h-5" />
+                                                        </a>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()
+                            )}
+                        </motion.div>
 
                         {/* Chronic Conditions */}
                         <motion.div variants={itemVariants} className="space-y-6">

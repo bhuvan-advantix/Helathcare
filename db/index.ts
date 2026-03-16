@@ -86,3 +86,30 @@ export async function ensureMedicationsSchema() {
 
     medicationsSchemaEnsured = true;
 }
+
+// ── Prescriptions schema guard ─────────────────────────────────────────────────
+let prescriptionsSchemaEnsured = false;
+
+export async function ensurePrescriptionsSchema() {
+    if (prescriptionsSchemaEnsured) return;
+
+    const tableInfo = await client.execute("PRAGMA table_info('prescriptions')");
+    const existingColumns = new Set(
+        tableInfo.rows.map((row) => String((row as Record<string, unknown>).name))
+    );
+
+    if (existingColumns.size === 0) {
+        await client.execute(`
+            CREATE TABLE IF NOT EXISTS prescriptions (
+                id TEXT PRIMARY KEY NOT NULL,
+                patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                doctor_id TEXT REFERENCES doctors(id) ON DELETE SET NULL,
+                consultation_data TEXT NOT NULL,
+                cloudinary_url TEXT NOT NULL,
+                prescribed_at INTEGER
+            )
+        `);
+    }
+
+    prescriptionsSchemaEnsured = true;
+}
