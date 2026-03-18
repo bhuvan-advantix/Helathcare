@@ -301,11 +301,17 @@ const CredentialsModal = ({ customId, password, patientEmail, patientName, onClo
 const AppointmentModal = ({ patient, staffHospital, onClose, onSuccess }: {
     patient: any; staffHospital: string | null; onClose: () => void; onSuccess: () => void;
 }) => {
-    const today = new Date().toISOString().split('T')[0];
+    // Compute today client-side only to avoid SSR hydration mismatch (React error #418)
+    const [today, setToday] = useState('');
     const [form, setForm] = useState({
-        appointmentDate: today, appointmentTime: '', appointmentType: 'Consultation',
+        appointmentDate: '', appointmentTime: '', appointmentType: 'Consultation',
         hospitalName: staffHospital || '', doctorName: '', notes: '',
     });
+    useEffect(() => {
+        const t = new Date().toISOString().split('T')[0];
+        setToday(t);
+        setForm(f => ({ ...f, appointmentDate: t }));
+    }, []);
     const [availDoctors, setAvailDoctors] = useState<any[]>([]);
     const [error, setError] = useState('');
     const [isPending, startTransition] = useTransition();

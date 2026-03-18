@@ -70,11 +70,9 @@ export async function createPreCheckinAndSendEmail({
         const apptMs = apptDate.getTime();
         const hoursUntilAppt = (apptMs - now) / (1000 * 60 * 60);
 
-        // If appointment is more than 24 hrs away, we register it — 
-        // a background job (or cron-like API route) will send it 24 hrs before.
-        // If appointment is within 24 hrs, send immediately.
+        // If appointment is within 24 hrs (or date is invalid), send immediately.
+        // If > 24 hrs, the /api/checkin/send-scheduled cron route handles it.
         if (hoursUntilAppt <= 24 || isNaN(hoursUntilAppt)) {
-            // Send immediately
             await sendPreCheckinEmail({
                 patientName: user.name || 'Patient',
                 patientEmail: user.email,
@@ -84,7 +82,6 @@ export async function createPreCheckinAndSendEmail({
                 token,
             });
         }
-        // If > 24 hrs, the /api/checkin/send-scheduled API route handles it
 
         return { success: true };
     } catch (error: any) {
@@ -334,10 +331,27 @@ export async function getCheckinsForPatient(patientId: string): Promise<{
     error?: string;
 }> {
     try {
-        // Security: only doctors and staff may view patient check-in data
+        // Security: only doctors, admins, or staff with a valid cookie session may view check-in data
         const session = await getServerSession(authOptions);
         if (!session || (session.user.role !== 'doctor' && session.user.role !== 'staff' && session.user.role !== 'admin')) {
-            return { success: false, error: "Unauthorized. Only doctors and staff can view patient check-in history." };
+            // Check if there is a valid staff cookie session instead
+            const { cookies } = await import('next/headers');
+            const cookieStore = await cookies();
+            const staffCookieId = cookieStore.get('staff_session')?.value;
+            if (!staffCookieId) {
+                return { success: false, error: "Unauthorized. Only doctors and staff can view patient check-in history." };
+            }
+            // Verify it is a real active staff account
+            const { db: dbInner } = await import('@/db');
+            const { staffAccounts } = await import('@/db/schema');
+            const { eq: eqInner } = await import('drizzle-orm');
+            const [staffRow] = await dbInner.select({ id: staffAccounts.id })
+                .from(staffAccounts)
+                .where(eqInner(staffAccounts.id, staffCookieId))
+                .limit(1);
+            if (!staffRow) {
+                return { success: false, error: "Unauthorized." };
+            }
         }
 
         if (!patientId) return { success: false, error: "Patient ID is required." };

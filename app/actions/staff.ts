@@ -387,23 +387,32 @@ export async function createAppointmentForPatient(data: {
             .limit(1);
 
         if (patient) {
-            // Fire and forget — don't block the response
-            createPreCheckinAndSendEmail({
-                appointmentId: insertedAppt.id,
-                patientId: patient.id,
-                patientUserId: data.patientUserId,
-                appointmentDate: dateTime,
-                doctorName: data.doctorName,
-                hospitalName: data.hospitalName,
-            }).catch(err => console.error('[Staff] Pre-checkin email error:', err));
+            // IMPORTANT: On Vercel serverless, fire-and-forget (.catch without await)
+            // gets killed when the function returns. Must await to ensure email is sent.
+            try {
+                await createPreCheckinAndSendEmail({
+                    appointmentId: insertedAppt.id,
+                    patientId: patient.id,
+                    patientUserId: data.patientUserId,
+                    appointmentDate: dateTime,
+                    doctorName: data.doctorName,
+                    hospitalName: data.hospitalName,
+                });
+            } catch (err) {
+                console.error('[Staff] Pre-checkin email error:', err);
+            }
 
-            createPostCheckinRecord({
-                appointmentId: insertedAppt.id,
-                patientId: patient.id,
-                patientUserId: data.patientUserId,
-                appointmentDate: dateTime,
-                doctorName: data.doctorName,
-            }).catch(err => console.error('[Staff] Post-checkin record error:', err));
+            try {
+                await createPostCheckinRecord({
+                    appointmentId: insertedAppt.id,
+                    patientId: patient.id,
+                    patientUserId: data.patientUserId,
+                    appointmentDate: dateTime,
+                    doctorName: data.doctorName,
+                });
+            } catch (err) {
+                console.error('[Staff] Post-checkin record error:', err);
+            }
         }
     }
 
