@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { stopMedication, restartMedication, hideMedication, updateMedication } from "@/app/actions/medications";
+import CheckinHistorySection from "@/components/checkin/CheckinHistorySection";
 
 const FREQUENCIES = [
     { label: 'Once a day', multiplier: 1 },
@@ -377,6 +378,9 @@ export default function DoctorPatientProfileView({
                         )}
                     </div>
                 </div>
+
+                {/* ── Check-In History (compact, right below profile) ── */}
+                <CheckinHistorySection patientId={patient.id} />
 
                 {/* ── Main Content Grid ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
@@ -1099,6 +1103,8 @@ export default function DoctorPatientProfileView({
                     )}
                 </section>
             </div>
+
+
 
             {/* ── Delete Confirmation Modal ── */}
             <AnimatePresence>

@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
+import { createPreCheckinAndSendEmail, createPostCheckinRecord } from "@/app/actions/checkin";
 
 const STAFF_SESSION_COOKIE = "staff_session";
 
@@ -367,7 +368,7 @@ export async function createAppointmentForPatient(data: {
         `Scheduled by: ${staff.staffName}`,
     ].filter(Boolean);
 
-    await db.insert(timelineEvents).values({
+    const [insertedAppt] = await db.insert(timelineEvents).values({
         userId: data.patientUserId,
         title: data.title,
         description: descParts.join("\n"),
@@ -375,7 +376,37 @@ export async function createAppointmentForPatient(data: {
         eventType: "appointment",
         status: "pending",
         createdBy: "staff",
-    });
+    }).returning({ id: timelineEvents.id });
+
+    // Trigger pre-checkin email (immediate if within 24hrs, otherwise scheduled by cron)
+    // and pre-create post-checkin record (cron sends email 2-3 days after completion)
+    if (insertedAppt?.id) {
+        const [patient] = await db.select({ id: patients.id })
+            .from(patients)
+            .where(eq(patients.userId, data.patientUserId))
+            .limit(1);
+
+        if (patient) {
+            // Fire and forget — don't block the response
+            createPreCheckinAndSendEmail({
+                appointmentId: insertedAppt.id,
+                patientId: patient.id,
+                patientUserId: data.patientUserId,
+                appointmentDate: dateTime,
+                doctorName: data.doctorName,
+                hospitalName: data.hospitalName,
+            }).catch(err => console.error('[Staff] Pre-checkin email error:', err));
+
+            createPostCheckinRecord({
+                appointmentId: insertedAppt.id,
+                patientId: patient.id,
+                patientUserId: data.patientUserId,
+                appointmentDate: dateTime,
+                doctorName: data.doctorName,
+            }).catch(err => console.error('[Staff] Post-checkin record error:', err));
+        }
+    }
+
 
     revalidatePath("/staff");
     revalidatePath("/staff/dashboard");

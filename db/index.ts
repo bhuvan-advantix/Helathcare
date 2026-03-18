@@ -113,3 +113,51 @@ export async function ensurePrescriptionsSchema() {
 
     prescriptionsSchemaEnsured = true;
 }
+
+// ── Check-In schema guard ───────────────────────────────────────────────────────
+let checkinsSchemaEnsured = false;
+
+export async function ensureCheckinsSchema() {
+    if (checkinsSchemaEnsured) return;
+
+    // Pre-check-ins table
+    const preInfo = await client.execute("PRAGMA table_info('pre_checkins')");
+    if (preInfo.rows.length === 0) {
+        await client.execute(`
+            CREATE TABLE IF NOT EXISTS pre_checkins (
+                id TEXT PRIMARY KEY NOT NULL,
+                appointment_id TEXT NOT NULL,
+                patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                patient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT NOT NULL UNIQUE,
+                token_expires_at INTEGER NOT NULL,
+                is_submitted INTEGER DEFAULT 0,
+                submitted_at INTEGER,
+                answers TEXT,
+                created_at INTEGER
+            )
+        `);
+    }
+
+    // Post-check-ins table
+    const postInfo = await client.execute("PRAGMA table_info('post_checkins')");
+    if (postInfo.rows.length === 0) {
+        await client.execute(`
+            CREATE TABLE IF NOT EXISTS post_checkins (
+                id TEXT PRIMARY KEY NOT NULL,
+                appointment_id TEXT NOT NULL,
+                patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                patient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT NOT NULL UNIQUE,
+                token_expires_at INTEGER NOT NULL,
+                is_submitted INTEGER DEFAULT 0,
+                submitted_at INTEGER,
+                answers TEXT,
+                email_sent_at INTEGER,
+                created_at INTEGER
+            )
+        `);
+    }
+
+    checkinsSchemaEnsured = true;
+}

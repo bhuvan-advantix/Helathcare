@@ -16,6 +16,7 @@ import {
 import { ensurePrescriptionsSchema } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { createPreCheckinAndSendEmail, createPostCheckinRecord } from "@/app/actions/checkin";
 
 /** Compute a future ISO date string from a human-readable follow-up string like "In 3 days", "In 1 week", etc. */
 function computeFollowUpDate(followUp: string): string | null {
@@ -176,7 +177,7 @@ export async function finishConsultation(
         if (data.followUp && data.followUp.trim() && data.followUp !== 'No Follow-up Scheduled') {
             const followUpDate = computeFollowUpDate(data.followUp);
             if (followUpDate) {
-                await db.insert(timelineEvents).values({
+                const [followUpAppt] = await db.insert(timelineEvents).values({
                     userId: patient.userId,
                     title: `Follow-up with ${doctorDisplayName}`,
                     description: `Scheduled follow-up appointment. Reason: ${data.diagnosis || 'Routine follow-up'}.`,
@@ -185,9 +186,30 @@ export async function finishConsultation(
                     status: 'pending',  // Future, not yet completed
                     doctorId: doctor.id,
                     createdBy: 'doctor'
-                });
+                }).returning({ id: timelineEvents.id });
+
+                // Trigger pre-checkin email for the follow-up appointment
+                if (followUpAppt?.id) {
+                    createPreCheckinAndSendEmail({
+                        appointmentId: followUpAppt.id,
+                        patientId: patient.id,
+                        patientUserId: patient.userId,
+                        appointmentDate: followUpDate,
+                        doctorName: doctorDisplayName,
+                        hospitalName: doctor.clinicName || undefined,
+                    }).catch(err => console.error('[Consultation] Pre-checkin email error:', err));
+
+                    createPostCheckinRecord({
+                        appointmentId: followUpAppt.id,
+                        patientId: patient.id,
+                        patientUserId: patient.userId,
+                        appointmentDate: followUpDate,
+                        doctorName: doctorDisplayName,
+                    }).catch(err => console.error('[Consultation] Post-checkin record error:', err));
+                }
             }
         }
+
 
         revalidatePath(`/doctor/patient/${patientId}`);
         revalidatePath(`/doctor/consultation/${patientId}`);

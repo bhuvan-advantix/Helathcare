@@ -383,3 +383,48 @@ export const prescriptions = sqliteTable('prescriptions', {
 
     prescribedAt: integer('prescribed_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+// Pre-Check-In Table — sent to patient 24 hrs before appointment (staff-booked or doctor follow-up only)
+export const preCheckins = sqliteTable('pre_checkins', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    appointmentId: text('appointment_id').notNull(), // timelineEvents.id
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    patientUserId: text('patient_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+    // Secure token sent in email link — one-time use
+    token: text('token').notNull().unique(),
+    tokenExpiresAt: integer('token_expires_at', { mode: 'timestamp' }).notNull(),
+
+    // Submission status
+    isSubmitted: integer('is_submitted', { mode: 'boolean' }).default(false),
+    submittedAt: integer('submitted_at', { mode: 'timestamp' }),
+
+    // Form answers (JSON)
+    answers: text('answers', { mode: 'json' }).$type<Record<string, any>>(),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Post-Check-In Table — sent to patient 2-3 days after completed appointment
+export const postCheckins = sqliteTable('post_checkins', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    appointmentId: text('appointment_id').notNull(), // timelineEvents.id
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    patientUserId: text('patient_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+    // Secure token sent in email link — one-time use
+    token: text('token').notNull().unique(),
+    tokenExpiresAt: integer('token_expires_at', { mode: 'timestamp' }).notNull(),
+
+    // Submission status
+    isSubmitted: integer('is_submitted', { mode: 'boolean' }).default(false),
+    submittedAt: integer('submitted_at', { mode: 'timestamp' }),
+
+    // Form answers (JSON)
+    answers: text('answers', { mode: 'json' }).$type<Record<string, any>>(),
+
+    // Email sent tracking
+    emailSentAt: integer('email_sent_at', { mode: 'timestamp' }),
+
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
