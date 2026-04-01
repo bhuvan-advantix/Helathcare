@@ -488,22 +488,22 @@ export default function DoctorConsultationView({
                                     setFollowUp(matchedFw !== undefined ? matchedFw : payload);
                                     break;
                                 case 'allergies':
-                                    setNewAllergies(prev => prev ? prev + ", " + payload : payload);
+                                    setNewAllergies((prev: string) => prev ? prev + ", " + payload : payload);
                                     break;
                                 case 'surgeries':
-                                    setNewSurgeries(prev => prev ? prev + ", " + payload : payload);
+                                    setNewSurgeries((prev: string) => prev ? prev + ", " + payload : payload);
                                     break;
                                 case 'lifestyle':
-                                    setNewLifestyle(prev => prev ? prev + "\n" + payload : payload);
+                                    setNewLifestyle((prev: string) => prev ? prev + "\n" + payload : payload);
                                     break;
                                 case 'context':
-                                    setNewLifestyle(prev => prev ? prev + "\n" + payload : payload);
+                                    setNewLifestyle((prev: string) => prev ? prev + "\n" + payload : payload);
                                     break;
                                 case 'advice':
-                                    setPatientNote(prev => prev + (prev ? "\n" : "") + payload);
+                                    setPatientNote((prev: string) => prev + (prev ? "\n" : "") + payload);
                                     break;
                                 case 'private note':
-                                    setDoctorNote(prev => prev + (prev ? "\n" : "") + payload);
+                                    setDoctorNote((prev: string) => prev + (prev ? "\n" : "") + payload);
                                     break;
                             }
                             currentCommand = null;
