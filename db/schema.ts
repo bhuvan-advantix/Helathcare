@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import type { AdapterAccount } from '@auth/core/adapters';
+import type { AdapterAccount } from 'next-auth/adapters';
 import { v4 as uuidv4 } from 'uuid';
 
 export const users = sqliteTable('users', {
