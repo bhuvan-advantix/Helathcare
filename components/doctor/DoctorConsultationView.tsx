@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
     Activity, ArrowLeft, Stethoscope, Save, Plus, X, Upload, Calendar, Phone, UserPlus, User, Ruler, FileText, Pill, Trash2, MapPin, Weight, ChevronDown, CheckCircle2, AlertCircle, Loader2, AlertTriangle, Heart, ShieldCheck,
-    Brain, TrendingUp, TrendingDown, Minus, GripVertical, ChevronRight, FlaskConical, Syringe
+    Brain, TrendingUp, TrendingDown, Minus, GripVertical, ChevronRight, FlaskConical, Syringe, Mic, MicOff, Waves
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -25,6 +25,9 @@ export default function DoctorConsultationView({
     const [isPdfUploading, setIsPdfUploading] = useState(false);
     // Ref to the hidden print layout DOM node — used for PDF generation
     const prescriptionRef = useRef<HTMLDivElement>(null);
+
+    // Voice Assistant State
+    const [isListening, setIsListening] = useState(false);
 
     const [commonDiagnoses, setCommonDiagnoses] = useState([
         "Fever", "Stomach Ache", "Common Cold", "Influenza", "Headache", "Migraine",
@@ -320,6 +323,224 @@ export default function DoctorConsultationView({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Voice recognition effect
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+
+        let recognition: any = null;
+
+        if (isListening) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event: any) => {
+                const current = event.resultIndex;
+                const transcriptLine = event.results[current][0].transcript;
+                
+                const processTranscript = (text: string) => {
+                    const commandMap: Record<string, string> = {
+                        'diagnosis': 'diagnosis',
+                        'diagnoses': 'diagnosis',
+                        'medicine': 'medicine',
+                        'medicines': 'medicine',
+                        'lab test': 'lab test',
+                        'lab tests': 'lab test',
+                        'injection': 'injection',
+                        'injections': 'injection',
+                        'follow up': 'follow up',
+                        'followup': 'follow up',
+                        'next follow up': 'follow up',
+                        'next followup': 'follow up',
+                        'advice': 'advice',
+                        'patient advice': 'advice',
+                        'patient advice note': 'advice',
+                        'advice note': 'advice',
+                        'private note': 'private note',
+                        'doctor note': 'private note',
+                        'allergies': 'allergies',
+                        'allergy': 'allergies',
+                        'surgeries': 'surgeries',
+                        'surgery': 'surgeries',
+                        'past surgeries': 'surgeries',
+                        'past surgery': 'surgeries',
+                        'lifestyle': 'lifestyle',
+                        'diet': 'lifestyle',
+                        'patient clinical context': 'context',
+                        'clinical context': 'context'
+                    };
+                    
+                    // Sort by length descending to match longest sequences first
+                    const triggerKeys = Object.keys(commandMap).sort((a, b) => b.length - a.length);
+                    // Build regex without backslashes to avoid escaping bugs: replace spaces with [ ]+
+                    const regexSrc = `(${triggerKeys.map(k => k.replace(/ /g, '[ ]+')).join('|')})`;
+                    const regex = new RegExp(regexSrc, 'gi');
+                    const parts = text.split(regex);
+                    let currentCommand: string | null = null;
+                    
+                    for (let i = 0; i < parts.length; i++) {
+                        const part = parts[i].trim();
+                        if (!part) continue;
+                        
+                        // Check if part is a trigger word by ignoring case
+                        // Also normalize spaces in part to match triggerKeys format
+                        const normalizedPart = part.toLowerCase().replace(/[ ]+/g, ' ');
+                        const isTriggerKey = triggerKeys.find(k => k.toLowerCase() === normalizedPart);
+                        
+                        if (isTriggerKey) {
+                            currentCommand = commandMap[isTriggerKey.toLowerCase()];
+                        } else if (currentCommand) {
+                            const payload = part.charAt(0).toUpperCase() + part.slice(1);
+                            switch(currentCommand) {
+                                case 'diagnosis':
+                                    const diagLower = payload.toLowerCase();
+                                    const matchedDiags = commonDiagnoses.filter(d => diagLower.includes(d.toLowerCase()));
+                                    if (matchedDiags.length > 0) {
+                                        setDiagnoses(prev => {
+                                            let newDiags = [...prev];
+                                            matchedDiags.forEach(matched => {
+                                                if (!newDiags.includes(matched)) newDiags.push(matched);
+                                            });
+                                            return newDiags;
+                                        });
+                                    } else {
+                                        setDiagnoses(prev => !prev.includes(payload) ? [...prev, payload] : prev);
+                                    }
+                                    break;
+                                case 'medicine':
+                                    const lowerPart = payload.toLowerCase();
+                                    const morning = lowerPart.includes('morning');
+                                    const afternoon = lowerPart.includes('afternoon');
+                                    const night = lowerPart.includes('night');
+                                    const beforeFood = lowerPart.includes('before');
+                                    const afterFood = lowerPart.includes('after');
+                                    
+                                    let days = '';
+                                    const digitMatch = payload.match(/([0-9]+)[ ]*(days?|day)/i) || payload.match(/for[ ]*([0-9]+)/i);
+                                    let wordMatched = '';
+                                    const wordMap: Record<string, string> = {
+                                        'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
+                                        'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
+                                        'eleven': '11', 'twelve': '12', 'fourteen': '14', 'fifteen': '15',
+                                        'twenty': '20', 'thirty': '30'
+                                    };
+                                    if (digitMatch && digitMatch[1]) {
+                                        days = digitMatch[1];
+                                    } else {
+                                        for (const [word, num] of Object.entries(wordMap)) {
+                                            if (new RegExp(`(?:for[ ]+)?(^|[ ])${word}([ ]|$)(?:[ ]+days?)?`, 'i').test(payload)) {
+                                                days = num;
+                                                wordMatched = word;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    let cleanRegexOptions = ['morning', 'afternoon', 'night', 'before food', 'after food', 'before', 'after'];
+                                    if (days) {
+                                        cleanRegexOptions.push(`for[ ]*${days}[ ]*days?`, `${days}[ ]*days?`, `for[ ]*${days}`);
+                                    }
+                                    let cleanRegex = new RegExp(`(${cleanRegexOptions.join('|')})`, 'gi');
+                                    let nameRaw = payload.replace(cleanRegex, '').trim();
+                                    
+                                    if (wordMatched) {
+                                        nameRaw = nameRaw.replace(new RegExp(`(?:for[ ]+)?(^|[ ])${wordMatched}([ ]|$)(?:[ ]+days?)?`, 'gi'), '').trim();
+                                    }
+                                    nameRaw = nameRaw.replace(/(^|[ ])(?:for|days?)([ ]|$)/gi, ' ').replace(/[ ]+/g, ' ');
+                                    nameRaw = nameRaw.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '').trim();
+                                    
+                                    let finalName = nameRaw.charAt(0).toUpperCase() + nameRaw.slice(1);
+                                    
+                                    if (nameRaw) {
+                                        const matchedMed = commonMedications.find(m => m.toLowerCase().includes(nameRaw.toLowerCase()) || nameRaw.toLowerCase().includes(m.toLowerCase()));
+                                        if (matchedMed) finalName = matchedMed;
+                                        
+                                        setMedications((prev: any) => {
+                                            const newMed = { id: Date.now() + Math.random(), name: finalName, morning, afternoon, night, days, beforeFood, afterFood, isPrescribed: true };
+                                            return [...prev.filter((m: any) => m.name.trim() !== ''), newMed];
+                                        });
+                                    }
+                                    break;
+                                case 'lab test':
+                                    setLabTests((prev: any) => [...prev, { id: Date.now() + Math.random(), name: payload, notes: '' }]);
+                                    break;
+                                case 'injection':
+                                    setInjections((prev: any) => [...prev, { id: Date.now() + Math.random(), name: payload, notes: '' }]);
+                                    break;
+                                case 'follow up':
+                                    const fwLower = payload.toLowerCase();
+                                    const fwOptions = ['In 3 days', 'In 1 week', 'In 2 weeks', 'In 1 month', 'SOS / When needed'];
+                                    let matchedFw = fwOptions.find(fw => fwLower.includes(fw.toLowerCase()));
+                                    if (!matchedFw) matchedFw = fwOptions.find(fw => fw.toLowerCase().includes(fwLower.replace(/in[ ]+/g,'').trim()));
+                                    
+                                    if (!matchedFw) {
+                                        if (fwLower.includes('week') || fwLower.includes('7 days')) matchedFw = 'In 1 week';
+                                        else if (fwLower.includes('month') || fwLower.includes('30 days')) matchedFw = 'In 1 month';
+                                        else if (fwLower.includes('3') || fwLower.includes('three')) matchedFw = 'In 3 days';
+                                        else if (fwLower.includes('14') || fwLower.includes('2 weeks') || fwLower.includes('two weeks')) matchedFw = 'In 2 weeks';
+                                        else if (fwLower.includes('sos') || fwLower.includes('need') || fwLower.includes('emergency')) matchedFw = 'SOS / When needed';
+                                        else if (fwLower.includes('none') || fwLower.includes('no')) matchedFw = '';
+                                    }
+                                    
+                                    setFollowUp(matchedFw !== undefined ? matchedFw : payload);
+                                    break;
+                                case 'allergies':
+                                    setNewAllergies(prev => prev ? prev + ", " + payload : payload);
+                                    break;
+                                case 'surgeries':
+                                    setNewSurgeries(prev => prev ? prev + ", " + payload : payload);
+                                    break;
+                                case 'lifestyle':
+                                    setNewLifestyle(prev => prev ? prev + "\n" + payload : payload);
+                                    break;
+                                case 'context':
+                                    setNewLifestyle(prev => prev ? prev + "\n" + payload : payload);
+                                    break;
+                                case 'advice':
+                                    setPatientNote(prev => prev + (prev ? "\n" : "") + payload);
+                                    break;
+                                case 'private note':
+                                    setDoctorNote(prev => prev + (prev ? "\n" : "") + payload);
+                                    break;
+                            }
+                            currentCommand = null;
+                        }
+                    }
+                };
+
+                processTranscript(transcriptLine);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+                if (event.error === 'not-allowed' || event.error === 'network') {
+                    setIsListening(false);
+                }
+            };
+            
+            recognition.onend = () => {
+                 if (isListening) {
+                     try { recognition.start(); } catch(e) {}
+                 }
+            }
+
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        return () => {
+            if (recognition) {
+                recognition.onend = null;
+                recognition.stop();
+            }
+        };
+    }, [isListening]);
 
     const handleLabUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -753,12 +974,7 @@ export default function DoctorConsultationView({
                             PW / 2, PH - 4, { align: 'center' }
                         );
 
-                        // ── Trigger native browser print dialog on current page ───
-                        // PrintPrescription component (hidden print:block) renders this
-                        // No new tab opens — print dialog appears on same screen
-                        window.print();
-
-                        // ── Upload same blob to Cloudinary ────────────────────────
+                        // ── Generate PDF blob first ───────────────────────────────
                         const pdfBlob = pdf.output('blob');
                         const pdfFile = new File(
                             [pdfBlob],
@@ -766,6 +982,7 @@ export default function DoctorConsultationView({
                             { type: 'application/pdf' }
                         );
 
+                        // ── Upload to Cloudinary BEFORE printing ──────────────────
                         const { signature, timestamp, cloudName, apiKey } = await getCloudinarySignature('prescriptions');
                         if (cloudName && apiKey) {
                             const formData = new FormData();
@@ -774,7 +991,8 @@ export default function DoctorConsultationView({
                             formData.append('timestamp', timestamp.toString());
                             formData.append('signature', signature);
                             formData.append('folder', 'prescriptions');
-
+                            formData.append('type', 'upload');
+                            formData.append('access_mode', 'public');
                             const uploadRes = await fetch(
                                 `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
                                 { method: 'POST', body: formData }
@@ -799,15 +1017,27 @@ export default function DoctorConsultationView({
                                     summaryType,
                                     summaryText,
                                 };
+                                // ── Save prescription to patient DB ───────────────
                                 await savePrescription(patient.id, uploadData.secure_url, consultationSnapshot);
+                            } else {
+                                const errBody = await uploadRes.json().catch(() => ({}));
+                                console.error('Cloudinary prescription upload failed:', errBody);
                             }
+                        } else {
+                            console.error('Cloudinary config missing — prescription not saved to patient records.');
                         }
+
+                        // ── Trigger browser print dialog AFTER saving ─────────────
+                        // This ensures the prescription is saved before the dialog
+                        // potentially blocks JS execution on some browsers.
+                        window.print();
+
                     } catch (pdfError) {
                         console.error('Prescription PDF/upload failed:', pdfError);
                     } finally {
                         setIsPdfUploading(false);
                     }
-                    // Small delay then navigate away (overlay stays open until user closes it)
+                    // Small delay then navigate away
                     await new Promise(resolve => setTimeout(resolve, 400));
 
                 }
@@ -2102,6 +2332,27 @@ export default function DoctorConsultationView({
                     </div>
 
                 </main>
+
+                {/* Global Voice Assistant FAB */}
+                <div className="fixed bottom-8 sm:bottom-12 right-6 sm:right-10 z-50 animate-in fade-in slide-in-from-bottom print:hidden flex flex-col items-end gap-3">
+                    {isListening && (
+                        <div className="bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 mb-1 animate-pulse max-w-[280px] sm:max-w-xs text-right">
+                            <span className="leading-snug">Listening... say <span className="text-teal-400 font-bold">"diagnosis fever"</span> or <span className="text-teal-400 font-bold">"medicine crocin morning night"</span></span>
+                            <Waves className="w-5 h-5 text-teal-400 flex-shrink-0" />
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setIsListening(!isListening)}
+                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 border-4 border-white ${isListening ? 'bg-rose-500 scale-110 shadow-rose-500/50 hover:bg-rose-600' : 'bg-teal-600 hover:bg-teal-700 hover:scale-105 shadow-teal-500/40 text-white'}`}
+                        title="Voice Assistant Dictation"
+                    >
+                        {isListening ? (
+                            <MicOff className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                        ) : (
+                            <Mic className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                        )}
+                    </button>
+                </div>
 
                 {/* ── Save Confirmation Modal ── */}
                 {showConfirm && (

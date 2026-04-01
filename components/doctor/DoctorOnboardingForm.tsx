@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Cake, Phone, MapPin, Building, Award, Stethoscope, Clock, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 export default function DoctorOnboardingForm({ user }: { user: any }) {
     const router = useRouter();
+    const { update } = useSession();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [step, setStep] = useState(1);
 
     const [formData, setFormData] = useState({
+        name: user.name || '',
         dateOfBirth: '',
         age: '',
         gender: 'Male',
@@ -33,7 +36,7 @@ export default function DoctorOnboardingForm({ user }: { user: any }) {
 
     const validateStep = (currentStep: number) => {
         if (currentStep === 1) {
-            return formData.age && formData.phoneNumber && formData.address && formData.city;
+            return formData.name && formData.age && formData.phoneNumber && formData.address && formData.city;
         }
         return true;
     };
@@ -61,6 +64,7 @@ export default function DoctorOnboardingForm({ user }: { user: any }) {
 
             if (result.success) {
                 // Refresh session to update isOnboarded flag
+                await update({ isOnboarded: true, name: formData.name, customId: result.customId });
                 router.refresh();
                 router.push('/doctor/dashboard');
             } else {
@@ -100,6 +104,35 @@ export default function DoctorOnboardingForm({ user }: { user: any }) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Full Name <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                                        placeholder="Dr. John Doe"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                                    <input
+                                        type="tel"
+                                        name="phoneNumber"
+                                        value={formData.phoneNumber}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                                        placeholder="Contact Number"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Age <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -130,21 +163,7 @@ export default function DoctorOnboardingForm({ user }: { user: any }) {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                                    <input
-                                        type="tel"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
-                                        placeholder="Contact Number"
-                                    />
-                                </div>
-                            </div>
-                            <div>
+                            <div className="md:col-span-2">
                                 <label className="block text-sm font-bold text-slate-700 mb-2">City <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />

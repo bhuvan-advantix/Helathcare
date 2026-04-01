@@ -299,7 +299,8 @@ function OnboardingContent() {
             }
 
             // Update session (force refresh)
-            await update({});
+            const updatedName = formData.title ? `${formData.title} ${formData.name}` : formData.name;
+            await update({ isOnboarded: true, role: role, customId: result.customId, name: updatedName });
 
             // Clear persistence
             if (typeof window !== 'undefined') {

@@ -91,22 +91,19 @@ export const authOptions: NextAuthOptions = {
                 token.isOnboarded = user.isOnboarded;
                 token.customId = user.customId;
             }
-            // Support updating session from client (force refresh from DB)
-            if (trigger === "update") {
-                const userId = (token.id as string) || (token.sub as string);
-
-                if (userId) {
-                    // Fetch fresh user data from database
-                    const [updatedUser] = await db.select()
-                        .from(users)
-                        .where(eq(users.id, userId))
-                        .limit(1);
-
-                    if (updatedUser) {
-                        token.role = updatedUser.role;
-                        token.isOnboarded = updatedUser.isOnboarded;
-                        token.customId = updatedUser.customId;
-                    }
+            // Support updating session from client
+            if (trigger === "update" && session) {
+                if (session.isOnboarded !== undefined) {
+                    token.isOnboarded = session.isOnboarded;
+                }
+                if (session.role) {
+                    token.role = session.role;
+                }
+                if (session.name) {
+                    token.name = session.name;
+                }
+                if (session.customId) {
+                    token.customId = session.customId;
                 }
             }
             return token;

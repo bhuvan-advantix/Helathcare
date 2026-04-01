@@ -15,6 +15,8 @@ export async function getCloudinarySignature(folder: string = 'lab_reports') {
     const signature = cloudinary.utils.api_sign_request({
         timestamp,
         folder,
+        type: 'upload',
+        access_mode: 'public'
     }, process.env.CLOUDINARY_API_SECRET!);
 
     return {
