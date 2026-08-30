@@ -204,29 +204,6 @@ function LoginContent() {
                         </div>
                     ) : (
                         <div className="animate-fade-in-up">
-                            {/* Quick fill helper banner for demo testing */}
-                            <div className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between text-xs">
-                                <span className="text-teal-800 font-medium">
-                                    Demo {selectedRole === 'doctor' ? 'Doctor' : 'Patient'} Account
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (selectedRole === 'doctor') {
-                                            setEmail('ananya.rao@niraiva.health');
-                                        } else {
-                                            setEmail('maya.srinivasan@niraiva.health');
-                                        }
-                                        setPassword('NiraivaDemo@2026');
-                                        setLoginError('');
-                                        setEmailError('');
-                                    }}
-                                    className="font-bold text-teal-700 hover:text-teal-900 underline bg-teal-100/80 px-2 py-1 rounded-md transition-colors"
-                                >
-                                    Auto-fill Demo Credentials
-                                </button>
-                            </div>
-
                             {/* Login Form Phase */}
                             <form className="space-y-6" onSubmit={handleLogin}>
 
