@@ -71,10 +71,10 @@ export default function SignupPage() {
             });
 
             if (result?.ok) {
-                router.push('/onboarding');
+                window.location.href = '/onboarding';
             } else {
                 // Account created but login failed - redirect to login
-                router.push('/login');
+                window.location.href = '/login';
             }
         } catch (error) {
             setSignupError('An unexpected error occurred. Please try again.');
