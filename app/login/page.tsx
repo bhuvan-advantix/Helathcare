@@ -67,10 +67,14 @@ function LoginContent() {
             });
 
             if (result?.error) {
-                setLoginError(result.error);
+                // NextAuth wraps the error message — show it cleanly
+                const msg = result.error === 'CredentialsSignin'
+                    ? 'Incorrect email or password. Please try again.'
+                    : result.error;
+                setLoginError(msg);
             } else if (result?.ok) {
-                // Successful login - redirect will happen via useEffect
-                router.push('/onboarding');
+                // Redirect will happen via the useEffect once session refreshes
+                router.refresh();
             }
         } catch (error) {
             setLoginError('An unexpected error occurred. Please try again.');
@@ -79,14 +83,25 @@ function LoginContent() {
         }
     };
 
-    // Redirect if already logged in
+    // Redirect if already logged in — role-aware routing
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
-            // If user is already logged in, redirect them
-            if (session.user.isOnboarded) {
-                router.push('/dashboard');
+            const role = session.user.role;
+            const isOnboarded = session.user.isOnboarded;
+
+            if (role === 'doctor') {
+                if (isOnboarded) {
+                    router.push('/doctor/dashboard');
+                } else {
+                    router.push('/doctor/onboarding');
+                }
             } else {
-                router.push('/onboarding');
+                // patient or pending
+                if (isOnboarded) {
+                    router.push('/dashboard');
+                } else {
+                    router.push('/onboarding');
+                }
             }
         }
     }, [status, session, router]);
