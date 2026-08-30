@@ -55,6 +55,7 @@ import HelpSupportView from '@/components/HelpSupportView';
 import DashboardNavbar from '@/components/DashboardNavbar';
 import LabReports from '@/components/LabReports';
 import Footer from '@/components/Footer';
+import { buildOncologyBrief } from '@/lib/oncologyDemo';
 // --- Dashboard Components ---
 
 interface HealthCardProps {
@@ -949,6 +950,9 @@ interface DashboardProps {
             conditionName: string;
             conditionStatus: string;
             createdAt: string | null;
+            clinicalNotes?: string | null;
+            treatmentPlan?: string | null;
+            nodes?: unknown[];
         }>;
         upcomingAppointments?: Array<{
             id: string;
@@ -1472,6 +1476,11 @@ export default function PatientDashboard({ data }: DashboardProps) {
         .filter((m: any) => m.status !== 'Hidden')
         .sort((a: any, b: any) => (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2));
     // Conditions are now from diagnostics, not the plain text field
+    const oncologyBrief = buildOncologyBrief({
+        patient,
+        reports: patient?.reports || [],
+        diagnostics: diagnosticConditions,
+    });
 
     return (
         <div className="min-h-screen bg-[#F7F9FA] flex flex-col">
@@ -1559,6 +1568,55 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                 </Link>
                             </div>
                         </motion.div>
+
+                        {oncologyBrief.hasOncologyData && (
+                            <motion.section
+                                variants={itemVariants}
+                                className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
+                            >
+                                <div className="p-6 md:p-8 border-b border-slate-100 bg-gradient-to-r from-teal-50 to-white">
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-teal-700 mb-2">
+                                                <Shield className="w-4 h-4" />
+                                                Oncology Care Plan
+                                            </div>
+                                            <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
+                                                {oncologyBrief.diagnosis}
+                                            </h2>
+                                            <p className="text-sm text-slate-600 font-medium mt-2 max-w-3xl leading-relaxed">
+                                                {oncologyBrief.patientSummary}
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 md:min-w-[250px]">
+                                            <div className="rounded-xl bg-white border border-teal-100 p-3 shadow-sm">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Stage</p>
+                                                <p className="text-base font-black text-slate-900 mt-1">{oncologyBrief.stage}</p>
+                                            </div>
+                                            <div className="rounded-xl bg-white border border-teal-100 p-3 shadow-sm">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Care phase</p>
+                                                <p className="text-base font-black text-slate-900 mt-1 capitalize">{oncologyBrief.carePhase}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Diagnosis date</p>
+                                        <p className="text-sm font-black text-slate-900">{oncologyBrief.diagnosisDate}</p>
+                                    </div>
+                                    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Current plan</p>
+                                        <p className="text-sm font-bold text-slate-800 leading-relaxed">{oncologyBrief.currentPlan}</p>
+                                    </div>
+                                    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Next step</p>
+                                        <p className="text-sm font-bold text-slate-800 leading-relaxed">{oncologyBrief.nextMilestone}</p>
+                                    </div>
+                                </div>
+                            </motion.section>
+                        )}
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 

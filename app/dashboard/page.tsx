@@ -54,6 +54,9 @@ export default async function DashboardPage() {
                 id: patientDiagnostics.id,
                 conditionName: patientDiagnostics.conditionName,
                 conditionStatus: patientDiagnostics.conditionStatus,
+                clinicalNotes: patientDiagnostics.clinicalNotes,
+                treatmentPlan: patientDiagnostics.treatmentPlan,
+                nodes: patientDiagnostics.nodes,
                 createdAt: patientDiagnostics.createdAt,
             })
             .from(patientDiagnostics)
@@ -63,6 +66,9 @@ export default async function DashboardPage() {
             id: r.id,
             conditionName: r.conditionName,
             conditionStatus: r.conditionStatus ?? 'stable',
+            clinicalNotes: r.clinicalNotes ?? null,
+            treatmentPlan: r.treatmentPlan ?? null,
+            nodes: (r.nodes as unknown[]) ?? [],
             createdAt: r.createdAt?.toISOString() ?? null,
         }));
         patientReports = await db.query.labReports.findMany({
@@ -76,6 +82,7 @@ export default async function DashboardPage() {
                 labName: true,
                 patientName: true,
                 doctorName: true,
+                extractedData: true,
                 fileSize: true,
                 pageCount: true,
                 uploadedAt: true

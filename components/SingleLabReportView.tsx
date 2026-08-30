@@ -42,6 +42,7 @@ interface LabReport {
     labName: string | null;
     patientName: string | null;
     doctorName: string | null;
+    cloudinaryUrl?: string;
     extractedData: TestResult[] | { results: TestResult[], metadata: any };
     fileSize: number;
     pageCount: number;
@@ -60,61 +61,16 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
     const [downloading, setDownloading] = useState(false);
 
     const handleDownload = async () => {
+        setDownloading(true);
         try {
-            setDownloading(true);
-            const result = await getReportPdf(report.id);
-
-            if (result.success) {
-                // Handle Cloudinary URL (new method)
-                if (result.cloudinaryUrl) {
-                    // Fetch the PDF from Cloudinary
-                    const response = await fetch(result.cloudinaryUrl);
-                    const blob = await response.blob();
-
-                    // Create download link
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = report.fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                }
-                // Handle legacy base64 data
-                else if (result.fileData) {
-                    let base64Data = result.fileData as string;
-                    if (base64Data.startsWith('data:application/pdf;base64,')) {
-                        base64Data = base64Data.split(',')[1];
-                    }
-                    base64Data = base64Data.replace(/\s/g, '');
-
-                    const byteCharacters = atob(base64Data);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: 'application/pdf' });
-                    const url = window.URL.createObjectURL(blob);
-
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = report.fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                }
-                else {
-                    alert('Failed to download report. File not found.');
-                }
+            if (report.cloudinaryUrl) {
+                window.open(report.cloudinaryUrl, '_blank');
             } else {
-                alert('Failed to download report. Please try again.');
+                window.print();
             }
-        } catch (error) {
-            console.error('Download error:', error);
-            alert('An error occurred while downloading.');
+        } catch (err) {
+            console.error('Download error:', err);
+            window.print();
         } finally {
             setDownloading(false);
         }
@@ -214,13 +170,12 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                             className="w-full md:w-auto px-4 py-2.5 md:px-6 md:py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm shadow-teal-200 text-sm md:text-base"
                         >
                             {downloading ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Download className="w-4 h-4 md:w-5 md:h-5" />}
-                            <span>Download Original PDF</span>
+                            <span>{report.cloudinaryUrl ? 'Download Original PDF' : 'Print Structured Report'}</span>
                         </button>
                     </div>
 
                     {/* Info Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Analysis Details Card */}
                         <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <div className="flex items-center gap-2 mb-2 md:mb-3 text-teal-700">
                                 <Info className="w-4 h-4 md:w-5 md:h-5" />
@@ -231,241 +186,58 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                     <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Report type</span>
                                     <span className="font-semibold text-slate-700 text-xs md:text-sm">Medical Lab Report</span>
                                 </div>
-                                <div className='mt-1.5 md:mt-2'>
-                                    <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Parameters Found</span>
-                                    <span className="font-semibold text-slate-700 text-xs md:text-sm">
-                                        {(() => {
-                                            const categories = Array.isArray(report.extractedData)
-                                                ? report.extractedData
-                                                : (report.extractedData as any).results || [];
-                                            const total = categories.reduce((acc: number, cat: any) => acc + cat.tests.length, 0);
-                                            return total > 0 ? `${total} Parameters` : 'N/A';
-                                        })()}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Lab Info Card */}
-                        <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-2 md:mb-3 text-teal-700">
-                                <Building2 className="w-4 h-4 md:w-5 md:h-5" />
-                                <h3 className="font-bold text-sm md:text-base">Lab Info Details</h3>
-                            </div>
-                            <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
-                                <div>
-                                    <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Lab Name</span>
-                                    <span className="font-semibold text-slate-700 truncate block items-center gap-1 text-xs md:text-sm" title={report.labName || 'N/A'}>
-                                        {report.labName || 'Not Specified'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Report IDs</span>
-                                    <div className="flex flex-col gap-0.5 md:gap-1 mt-1">
-                                        <span className="text-[10px] md:text-xs text-slate-500">
-                                            SRF: <span className="font-semibold text-slate-700 text-xs md:text-sm">{extractedMetadata.srfId || 'N/A'}</span>
-                                        </span>
-                                        <span className="text-[10px] md:text-xs text-slate-500">
-                                            Ref: <span className="font-semibold text-slate-700 text-xs md:text-sm">{extractedMetadata.refId || 'N/A'}</span>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Patient Details Card */}
-                        <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-2 md:mb-3 text-teal-700">
-                                <User className="w-4 h-4 md:w-5 md:h-5" />
-                                <h3 className="font-bold text-sm md:text-base">Patient Details</h3>
-                            </div>
-                            <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
-                                <div>
-                                    <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Name</span>
-                                    <span className="font-semibold text-slate-700 truncate block text-xs md:text-sm">
-                                        {report.patientName || extractedMetadata.patientName || 'Not Specified'}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Age/Sex</span>
-                                        <span className="font-semibold text-slate-700 text-xs md:text-sm">
-                                            {extractedMetadata.age || '-'} / {extractedMetadata.gender || '-'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Collected</span>
-                                        <span className="font-semibold text-slate-700 truncate text-xs md:text-sm">
-                                            {extractedMetadata.collectionDate || formatDate(report.reportDate)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Doctor Details Card */}
-                        <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-2 md:mb-3 text-teal-700">
-                                <Stethoscope className="w-4 h-4 md:w-5 md:h-5" />
-                                <h3 className="font-bold text-sm md:text-base">Doctor Details</h3>
-                            </div>
-                            <div className="space-y-1 text-xs md:text-sm">
-                                <div>
-                                    <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Referred By</span>
-                                    <span className="font-semibold text-slate-700 truncate block text-xs md:text-sm">
-                                        {report.doctorName || 'Not Specified'}
-                                    </span>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Report Content */}
-                    <div className="space-y-6">
+                    {/* Test Results Table */}
+                    <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm">
+                        <h2 className="text-lg font-black text-slate-900 mb-4">Extracted Parameters</h2>
                         {(() => {
-                            const categories = Array.isArray(report.extractedData)
-                                ? report.extractedData
-                                : (report.extractedData as any).results || [];
+                            const rawData = report.extractedData;
+                            const results: TestResult[] = Array.isArray(rawData) ? rawData : (rawData?.results || []);
 
-                            if (categories && categories.length > 0) {
-                                return categories.map((category: TestResult, idx: number) => {
-                                    return (
-                                        <div key={idx} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                                            {/* Category header */}
-                                            <div className="w-full p-3 md:p-5 flex items-center justify-between bg-slate-50/50 border-b border-slate-100">
-                                                <h4 className="text-sm md:text-lg font-black text-slate-900 uppercase tracking-tight">
-                                                    {category.category}
-                                                </h4>
-                                                <div className="flex items-center gap-2 md:gap-3">
-                                                    <span className="text-[10px] md:text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg">
-                                                        {category.tests.length} tests
-                                                    </span>
-                                                    {/* AI badge — visible on ALL screen sizes */}
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg whitespace-nowrap">
-                                                        <Sparkles className="w-3 h-3 flex-shrink-0" />
-                                                        <span className="hidden sm:inline">AI Analysis — tap any row</span>
-                                                        <span className="sm:hidden">AI</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Table - Always Visible */}
-                                            <div className="overflow-x-auto">
-                                                <table className="min-w-full divide-y divide-slate-100 table-fixed border-collapse">
-                                                    <thead className="bg-slate-50/30">
-                                                        <tr>
-                                                            <th scope="col" className="px-2 py-3 md:px-6 md:py-4 text-left text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider w-[35%]">Test Name</th>
-                                                            <th scope="col" className="px-2 py-3 md:px-6 md:py-4 text-left text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider w-[25%]">Result</th>
-                                                            <th scope="col" className="px-2 py-3 md:px-6 md:py-4 text-left text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider w-[25%]">Ref. Val</th>
-                                                            <th scope="col" className="px-2 py-3 md:px-6 md:py-4 text-left text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider w-[15%]">Unit</th>
+                            if (results.length > 0) {
+                                return results.map((cat, idx) => (
+                                    <div key={idx} className="mb-6 last:mb-0">
+                                        <h3 className="text-sm font-bold text-teal-800 bg-teal-50 px-3 py-2 rounded-lg mb-3">
+                                            {cat.category}
+                                        </h3>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-xs md:text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px]">
+                                                        <th className="py-2 px-3">Test Name</th>
+                                                        <th className="py-2 px-3">Result</th>
+                                                        <th className="py-2 px-3">Unit</th>
+                                                        <th className="py-2 px-3">Reference / Comparator</th>
+                                                        <th className="py-2 px-3">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {cat.tests.map((test, tidx) => (
+                                                        <tr key={tidx} className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className="py-2.5 px-3 font-semibold text-slate-900">{test.name}</td>
+                                                            <td className="py-2.5 px-3 font-bold text-teal-600">{test.value}</td>
+                                                            <td className="py-2.5 px-3 text-slate-500">{test.unit}</td>
+                                                            <td className="py-2.5 px-3 text-slate-500">{test.referenceRange || 'Clinician reviewed'}</td>
+                                                            <td className="py-2.5 px-3">
+                                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase border ${test.status === 'high'
+                                                                    ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                                                    : test.status === 'low'
+                                                                        ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                                    }`}>
+                                                                    {test.status || 'normal'}
+                                                                </span>
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                        {category.tests.map((test, testIdx) => {
-                                                            const isAbnormal = test.status === 'high' || test.status === 'low';
-                                                            const testKey = `${category.category}-${test.name}-${testIdx}`;
-                                                            const isAnalysisOpen = !!activeAnalyses[testKey];
-                                                            const isLoading = loadingAnalysis[testKey];
-
-                                                            return (
-                                                                <Fragment key={testIdx}>
-                                                                    <tr
-                                                                        onClick={() => handleAnalyze(testKey, test)}
-                                                                        className={`transition-colors cursor-pointer relative border-b border-slate-100
-                                                                            ${isAnalysisOpen ? 'bg-white border-b-0' : 'hover:bg-slate-50'}
-                                                                            ${isAbnormal ? 'border-l-[6px] border-l-red-500 bg-red-50/10' : ''}
-                                                                            ${!isAbnormal && isAnalysisOpen ? 'border-l-[6px] border-l-teal-500' : ''}
-                                                                        `}
-                                                                    >
-                                                                        <td className="px-2 py-3 md:px-6 md:py-5 break-words align-top">
-                                                                            <div className="flex items-start gap-1.5 md:gap-3">
-                                                                                <ChevronRight
-                                                                                    className={`w-3 h-3 md:w-4 md:h-4 mt-0.5 transition-transform duration-200 flex-shrink-0 ${isAnalysisOpen ? 'rotate-90 text-violet-500' : 'text-slate-400'}`}
-                                                                                />
-                                                                                <div className="flex flex-col flex-1 pb-1 md:pb-0">
-                                                                                    <span className={`text-[11px] md:text-sm font-bold leading-snug md:leading-tight mb-1 inline-block ${isAbnormal ? 'text-red-700' : 'text-slate-700'}`}>
-                                                                                        {test.name}
-                                                                                    </span>
-                                                                                    {/* Badges container: Abnormal + AI */}
-                                                                                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                                                                                        {isAbnormal && (
-                                                                                            <span className="inline-flex text-[8px] md:text-[9px] font-bold text-red-600 uppercase tracking-wide bg-red-50/80 border border-red-100 px-1.5 py-0.5 rounded-md leading-none">
-                                                                                                Abnormal
-                                                                                            </span>
-                                                                                        )}
-                                                                                        {!isAnalysisOpen && !analysisData[testKey] && (
-                                                                                            <span className="inline-flex items-center gap-0.5 text-[8px] md:text-[9px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md leading-none shadow-sm">
-                                                                                                <Sparkles className="w-2 h-2 md:w-2.5 md:h-2.5" />
-                                                                                                AI
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="px-2 py-3 md:px-6 md:py-5 align-top">
-                                                                            <span className={`text-xs md:text-lg font-black ${isAbnormal ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                                                {test.value}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-2 py-3 md:px-6 md:py-5 align-top text-[10px] md:text-sm font-medium text-slate-500">
-                                                                            {test.referenceRange || '-'}
-                                                                        </td>
-                                                                        <td className="px-2 py-3 md:px-6 md:py-5 align-top text-[10px] md:text-sm font-medium text-slate-500">
-                                                                            {test.unit}
-                                                                        </td>
-                                                                    </tr>
-                                                                    {/* AI Analysis Panel — appears below the row */}
-                                                                    {isAnalysisOpen && (
-                                                                        <tr className={`border-b border-slate-100 ${isAbnormal ? 'border-l-[4px] border-l-red-400' : 'border-l-[4px] border-l-violet-400'} bg-gradient-to-r from-violet-50/60 to-white`}>
-                                                                            <td colSpan={4} className="p-0">
-                                                                                <motion.div
-                                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                                    animate={{ opacity: 1, height: "auto" }}
-                                                                                    className="overflow-hidden"
-                                                                                >
-                                                                                    <div className="px-4 py-4 md:px-8 md:py-5">
-                                                                                        {/* AI header — once per opened row, never repeated */}
-                                                                                        <div className="flex items-center gap-2 mb-3">
-                                                                                            <div className="flex items-center gap-1.5 bg-white border border-violet-200 shadow-sm px-2.5 py-1 rounded-full">
-                                                                                                <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                                                                                                <span className="text-[11px] font-black text-violet-700 uppercase tracking-widest">AI Analysis</span>
-                                                                                            </div>
-                                                                                            <span className="text-xs text-slate-400 font-medium">{test.name}</span>
-                                                                                        </div>
-
-                                                                                        {isLoading ? (
-                                                                                            <div className="flex items-center gap-3 py-4">
-                                                                                                <div className="relative w-7 h-7 flex-shrink-0">
-                                                                                                    <div className="absolute inset-0 rounded-full border-2 border-violet-200 border-t-violet-500 animate-spin" />
-                                                                                                    <Brain className="absolute inset-0 m-auto w-3.5 h-3.5 text-violet-400" />
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                    <p className="text-sm font-bold text-slate-700">Analysing your result...</p>
-                                                                                                    <p className="text-[11px] text-slate-400 font-medium">Our AI is reviewing your {test.name} value</p>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        ) : (
-                                                                                            <div
-                                                                                                className="prose prose-sm max-w-none text-slate-600 [&_strong]:text-slate-800 [&_h3]:text-slate-900 [&_h3]:font-black [&_h3]:text-sm [&_ul]:pl-4 [&_li]:text-slate-600"
-                                                                                                dangerouslySetInnerHTML={{ __html: analysisData[testKey] || '' }}
-                                                                                            />
-                                                                                        )}
-                                                                                        <p className="text-[10px] text-slate-400 mt-3 pt-3 border-t border-violet-100">AI-generated · Not a substitute for professional medical advice</p>
-                                                                                    </div>
-                                                                                </motion.div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    )}
-                                                                </Fragment>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
-                                    );
-                                });
+                                    </div>
+                                ));
                             } else {
                                 return (
                                     <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
@@ -473,20 +245,10 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                         <p className="text-slate-500 font-medium text-lg">
                                             No test results could be extracted from this report
                                         </p>
-                                        <p className="text-slate-400 mt-1">
-                                            The PDF may be scanned or in an unsupported format
-                                        </p>
                                     </div>
                                 );
                             }
                         })()}
-
-                        {/* Page-level Disclaimer - Bottom of content */}
-                        <div className="mt-6 mb-4 text-center">
-                            <p className="text-xs text-slate-400 font-medium">
-                                DISCLAIMER: Automated analysis may contain inaccuracies. Please verify with the original PDF. Not for medical use.
-                            </p>
-                        </div>
                     </div>
                 </motion.div>
             </main>

@@ -39,6 +39,15 @@ interface DiagnosticPageProps {
     user: { id: string; name: string | null; customId: string | null; image: string | null; email: string };
     patient: PatientInfo;
     diagnostics: DiagnosticReport[];
+    medications?: Array<{
+        id: string;
+        name: string;
+        dosage?: string | null;
+        frequency?: string | null;
+        purpose?: string | null;
+        status?: string | null;
+        startDate?: string | null;
+    }>;
     initialDiagnosticId?: string; // pre-select a condition when coming from dashboard
 }
 
@@ -56,6 +65,11 @@ function calcAge(dob: string | null, age: number | null): number | null {
     if (age) return age;
     if (!dob) return null;
     return Math.floor((Date.now() - new Date(dob).getTime()) / 31557600000);
+}
+
+function formatMeasurement(value: string | null, unit: string) {
+    if (!value) return '—';
+    return value.toLowerCase().includes(unit.toLowerCase()) ? value : `${value} ${unit}`;
 }
 
 function mapNodesToMapNodes(nodes: any[]): DiagnosticNode[] {
@@ -123,13 +137,14 @@ function ConditionTab({ report, active, onClick }: { report: DiagnosticReport; a
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function DiagnosticPage({ user, patient, diagnostics, initialDiagnosticId }: DiagnosticPageProps) {
+export default function DiagnosticPage({ user, patient, diagnostics, medications = [], initialDiagnosticId }: DiagnosticPageProps) {
     const [selected, setSelected] = useState<DiagnosticReport | null>(
         (initialDiagnosticId ? diagnostics.find(d => d.id === initialDiagnosticId) : null) ?? diagnostics[0] ?? null
     );
     const [mapNodes, setMapNodes] = useState<DiagnosticNode[]>([]);
 
     const patientAge = calcAge(patient.dateOfBirth, patient.age);
+    const activeMedications = medications.filter(m => (m.status || 'Active').toLowerCase() === 'active');
 
     useEffect(() => {
         if (selected) {
@@ -174,13 +189,13 @@ export default function DiagnosticPage({ user, patient, diagnostics, initialDiag
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.4, delay: 0.1 }}
-                            className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-6"
+                            className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-5"
                         >
                             {/* Condition tabs */}
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                                 <div>
                                     <h2 className="text-lg font-black text-slate-900">Condition Pathway</h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">Click nodes for details · Pinch/scroll to zoom</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">Evidence workflow from first signal to closed-loop follow-up</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {diagnostics.map(d => (
@@ -251,8 +266,8 @@ export default function DiagnosticPage({ user, patient, diagnostics, initialDiag
                                         { label: 'Age', value: patientAge ? `${patientAge} yrs` : '—' },
                                         { label: 'Gender', value: patient.gender ?? '—' },
                                         { label: 'Blood Group', value: patient.bloodGroup ?? '—' },
-                                        { label: 'Height', value: patient.height ? `${patient.height} cm` : '—' },
-                                        { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : '—' },
+                                        { label: 'Height', value: formatMeasurement(patient.height, 'cm') },
+                                        { label: 'Weight', value: formatMeasurement(patient.weight, 'kg') },
                                     ].map(({ label, value }) => (
                                         <div key={label} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                                             <span className="text-xs text-slate-400 font-medium">{label}</span>
@@ -297,6 +312,48 @@ export default function DiagnosticPage({ user, patient, diagnostics, initialDiag
                                             </p>
                                         </div>
                                     )}
+
+                                    {/* Active Prescriptions */}
+                                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+                                        <div className="flex items-center justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center">
+                                                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                                                </div>
+                                                <h3 className="font-black text-sm text-slate-900">Active Prescriptions</h3>
+                                            </div>
+                                            {activeMedications.length > 0 && (
+                                                <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
+                                                    {activeMedications.length}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {activeMedications.length > 0 ? (
+                                            <div className="space-y-2.5">
+                                                {activeMedications.slice(0, 4).map(med => (
+                                                    <div key={med.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <p className="text-sm font-black text-slate-900">{med.name}</p>
+                                                            <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">
+                                                                Active
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs font-semibold text-slate-500 mt-1">
+                                                            {[med.dosage, med.frequency].filter(Boolean).join(' • ')}
+                                                        </p>
+                                                        {med.purpose && (
+                                                            <p className="text-[11px] font-semibold text-slate-400 mt-1">{med.purpose}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                                                No active prescription is linked to this pathway yet.
+                                            </p>
+                                        )}
+                                    </div>
 
                                     {/* Clinical Notes */}
                                     {selected.clinicalNotes && (

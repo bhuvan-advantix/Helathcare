@@ -5,7 +5,7 @@ import {
     User, Calendar, FileText, Activity, Pill,
     AlertTriangle, Mail, Phone, MapPin,
     ChevronRight, ArrowLeft, Weight, Ruler, Droplet, Heart, Stethoscope, Clock,
-    Syringe, Briefcase, UserPlus, FileEdit, Eye, Play, Square, Ban, EyeOff, Edit2, X, Trash2, Loader2, ChevronDown, Lock
+    Syringe, Briefcase, UserPlus, FileEdit, Eye, Play, Square, Ban, EyeOff, Edit2, X, Trash2, Loader2, ChevronDown, Lock, CheckCircle2
 } from 'lucide-react';
 import { deleteLabReport } from '@/app/actions/labReports';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { stopMedication, restartMedication, hideMedication, updateMedication } from "@/app/actions/medications";
 import CheckinHistorySection from "@/components/checkin/CheckinHistorySection";
+import { buildOncologyBrief } from "@/lib/oncologyDemo";
 
 const FREQUENCIES = [
     { label: 'Once a day', multiplier: 1 },
@@ -182,6 +183,7 @@ export default function DoctorPatientProfileView({
         (c: any) => c.doctorId === doctor?.id && c.followUpDate && c.followUpDate >= todayStr
     );
     const hasFollowUp = !!myPendingFollowUp;
+    const oncologyBrief = buildOncologyBrief({ patient, reports, healthParams, timeline, conditions });
 
     // Helper to get latest vital
     const getLatestVital = (name: string, altName?: string) => {
@@ -574,6 +576,91 @@ export default function DoctorPatientProfileView({
                     {/* ── Right Column ── */}
                     <div className="lg:col-span-8 space-y-4 sm:space-y-6">
 
+                        {/* OnCoTrack Clinician Brief */}
+                        {oncologyBrief && (
+                            <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="px-4 py-3 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                        <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+                                        OnCoTrack Clinician Brief
+                                    </h2>
+                                </div>
+                                <div className="p-4 sm:p-6 space-y-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div className="rounded-xl bg-teal-50 border border-teal-100 p-4">
+                                            <p className="text-[10px] font-black text-teal-700 uppercase tracking-wider mb-1">Diagnosis date</p>
+                                            <p className="text-sm font-black text-slate-900">{oncologyBrief.diagnosisDate}</p>
+                                        </div>
+                                        <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                                            <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">Treatment intent</p>
+                                            <p className="text-sm font-black text-slate-900">{oncologyBrief.treatmentIntent}</p>
+                                        </div>
+                                        <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
+                                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1">Next milestone</p>
+                                            <p className="text-sm font-black text-slate-900">{oncologyBrief.nextMilestone}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                            <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Clinician summary</p>
+                                            <p className="text-sm text-slate-700 leading-relaxed font-medium">{oncologyBrief.clinicianSummary}</p>
+                                            <p className="text-xs text-slate-500 font-semibold mt-3">
+                                                Owner: <span className="text-slate-900 font-black">{oncologyBrief.owner}</span>
+                                            </p>
+                                        </div>
+                                        <div className="rounded-xl border border-slate-100 bg-white p-4">
+                                            <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Latest oncology markers</p>
+                                            {oncologyBrief.markers.length > 0 ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {oncologyBrief.markers.map(marker => (
+                                                        <div key={`${marker.name}-${marker.date}`} className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-xs font-black text-slate-800 truncate">{marker.name}</p>
+                                                                {marker.status && (
+                                                                    <span className={`text-[9px] font-black uppercase ${marker.status.toLowerCase().includes('high') || marker.status.toLowerCase().includes('low') ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                        {marker.status}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm font-black text-slate-900 mt-1">
+                                                                {marker.value} <span className="text-[10px] font-bold text-slate-400">{marker.unit}</span>
+                                                            </p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-slate-500 font-medium">No marker trend available.</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {oncologyBrief.evidence.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Evidence reviewed</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                {oncologyBrief.evidence.map(item => (
+                                                    <div key={item} className="flex items-start gap-2 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                                                        <CheckCircle2 className="w-4 h-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                                                        <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">{item}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        {oncologyBrief.lanes.map(lane => (
+                                            <div key={lane.label} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{lane.label}</p>
+                                                <p className="text-xs font-bold text-slate-800 mt-1">{lane.status}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
                         {/* Private Clinical Notes */}
                         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col relative overflow-hidden">
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-teal-500" />
@@ -780,7 +867,7 @@ export default function DoctorPatientProfileView({
                                                 {/* Actions */}
                                                 <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                                                     <a
-                                                        href={report.cloudinaryUrl || '#'}
+                                                        href={report.cloudinaryUrl || `/labreports/${report.id}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-white text-slate-700 text-xs font-bold rounded-lg border border-slate-200 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm"
@@ -948,6 +1035,19 @@ export default function DoctorPatientProfileView({
                                                     </div>
                                                 )}
 
+                                                {/* Visit Summary */}
+                                                {c.visitSummary && (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2.5">
+                                                            <div className="w-1 h-4 rounded-full bg-slate-500" />
+                                                            <p className="text-xs font-black text-slate-700 uppercase tracking-widest">Visit Summary</p>
+                                                        </div>
+                                                        <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3.5">
+                                                            <p className="text-sm font-semibold text-slate-700 leading-relaxed">{c.visitSummary}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Medications */}
                                                 {c.prescribedMeds?.length > 0 && (
                                                     <div>
@@ -1035,6 +1135,33 @@ export default function DoctorPatientProfileView({
                                                     </div>
                                                 )}
 
+                                                {/* Reports Reviewed */}
+                                                {c.reportsOnDate?.length > 0 && (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2.5">
+                                                            <div className="w-1 h-4 rounded-full bg-red-500" />
+                                                            <p className="text-xs font-black text-slate-700 uppercase tracking-widest">Reports Reviewed</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                            {c.reportsOnDate.map((report: any) => (
+                                                                <a
+                                                                    key={report.id}
+                                                                    href={report.cloudinaryUrl || `/labreports/${report.id}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="bg-white rounded-2xl border border-red-100 px-4 py-3 shadow-sm hover:border-teal-300 hover:text-teal-700 transition-colors flex items-start gap-3"
+                                                                >
+                                                                    <FileText className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-sm font-black text-slate-900 truncate">{report.fileName || 'Clinical report'}</p>
+                                                                        <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{report.labName || 'Reviewed report'}</p>
+                                                                    </div>
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Patient Advice */}
                                                 {c.patientAdvice && (
                                                     <div>
@@ -1083,7 +1210,7 @@ export default function DoctorPatientProfileView({
                                                 )}
 
                                                 {/* Empty fallback */}
-                                                {!c.diagnosis && !c.prescribedMeds?.length && !c.vitals?.length && !c.patientAdvice && !c.privateNote && (
+                                                {!c.diagnosis && !c.visitSummary && !c.prescribedMeds?.length && !c.vitals?.length && !c.reportsOnDate?.length && !c.patientAdvice && !c.privateNote && (
                                                     <p className="text-sm text-slate-400 font-medium italic text-center py-4">No detailed records found for this visit.</p>
                                                 )}
                                             </div>

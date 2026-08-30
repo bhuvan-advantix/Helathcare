@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { users, patients } from "@/db/schema";
+import { users, patients, medications } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import DiagnosticPage from "@/components/DiagnosticPage";
 import { getDiagnosticsForPatient } from "@/app/actions/diagnostic";
@@ -35,8 +35,11 @@ export default async function DiagnosticDetailRoute({ params }: { params: Promis
 
     if (!patientData) redirect("/dashboard");
 
-    // Fetch all diagnostics for this patient
-    const diagnostics = await getDiagnosticsForPatient(patientData.id);
+    // Fetch all diagnostics and active treatment data for this patient
+    const [diagnostics, patientMedications] = await Promise.all([
+        getDiagnosticsForPatient(patientData.id),
+        db.select().from(medications).where(eq(medications.patientId, patientData.id)),
+    ]);
 
     // Verify this diagnostic belongs to this patient (security check)
     const targetDiagnostic = diagnostics.find(d => d.id === id);
@@ -62,6 +65,11 @@ export default async function DiagnosticDetailRoute({ params }: { params: Promis
                 chronicConditions: patientData.chronicConditions,
             }}
             diagnostics={diagnostics}
+            medications={patientMedications.map(m => ({
+                ...m,
+                startDate: m.startDate ? m.startDate.toString() : null,
+                createdAt: m.createdAt?.toISOString?.() || null,
+            }))}
             initialDiagnosticId={id}
         />
     );

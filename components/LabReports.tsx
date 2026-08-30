@@ -42,6 +42,7 @@ interface LabReport {
     labName: string | null;
     patientName: string | null;
     doctorName: string | null;
+    cloudinaryUrl?: string;
     extractedData: TestResult[] | { results: TestResult[], metadata: any };
     fileSize: number;
     pageCount: number;
@@ -99,45 +100,17 @@ export default function LabReports({
 
     const handleDownload = async (e: React.MouseEvent, reportId: string, fileName: string) => {
         e.stopPropagation();
+        setDownloadingId(reportId);
         try {
-            setDownloadingId(reportId);
-            const result = await getReportPdf(reportId);
-
-            if (result.success) {
-                // Handle Cloudinary URL (new method)
-                if (result.cloudinaryUrl) {
-                    // Fetch the PDF from Cloudinary
-                    const response = await fetch(result.cloudinaryUrl);
-                    const blob = await response.blob();
-
-                    // Create download link
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                }
-                // Handle legacy base64 data
-                else if (result.fileData) {
-                    const link = document.createElement('a');
-                    link.href = `data:application/pdf;base64,${result.fileData}`;
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                }
-                else {
-                    alert('Failed to download report. File not found.');
-                }
+            const report = reports.find(r => r.id === reportId);
+            if (report?.cloudinaryUrl) {
+                window.open(report.cloudinaryUrl, '_blank');
             } else {
-                alert('Failed to download report. Please try again.');
+                router.push(`/dashboard/lab-reports/${reportId}`);
             }
-        } catch (error) {
-            console.error('Download error:', error);
-            alert('An error occurred while downloading.');
+        } catch (err) {
+            console.error('Download error:', err);
+            router.push(`/dashboard/lab-reports/${reportId}`);
         } finally {
             setDownloadingId(null);
         }
@@ -197,354 +170,141 @@ export default function LabReports({
         });
     };
 
-    const renderEmptyState = () => (
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                <FileText className="w-10 h-10 text-slate-400" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">No Lab Reports Yet</h3>
-            <p className="text-slate-500 text-center max-w-md">
-                Upload your first lab report to start tracking your health metrics
-            </p>
-        </div>
-    );
-
-    const renderContent = () => (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h2 className="text-2xl font-black text-slate-900">Lab Reports</h2>
-                    <p className="text-slate-500 font-medium mt-1">
-                        {reports.length} {reports.length === 1 ? 'report' : 'reports'} uploaded
+    const content = (
+        <div className="space-y-4">
+            {reports.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                    <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <h3 className="font-bold text-slate-700 text-lg mb-1">No Lab Reports Yet</h3>
+                    <p className="text-slate-500 text-sm max-w-sm mx-auto">
+                        Uploaded lab reports and extracted medical parameters will appear here.
                     </p>
                 </div>
-            </div>
-
-            <div className="space-y-4">
-                {reports.map((report) => {
+            ) : (
+                reports.map((report) => {
                     const isExpanded = expandedReport === report.id;
+                    const rawData = report.extractedData;
+                    const testResults: TestResult[] = Array.isArray(rawData)
+                        ? rawData
+                        : (rawData?.results || []);
 
                     return (
-                        <motion.div
+                        <div
                             key={report.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white rounded-2xl border-2 border-slate-100 overflow-hidden hover:border-teal-200 transition-all shadow-sm"
+                            className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                         >
-                            {/* Report Header */}
-                            <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                                        <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                            <FileText className="w-6 h-6 text-teal-600" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-lg font-black text-slate-900 mb-2 truncate">
-                                                {report.fileName}
-                                            </h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {report.reportDate && (
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        <Calendar className="w-4 h-4 text-slate-400" />
-                                                        <span className="font-semibold text-slate-600">
-                                                            {formatDate(report.reportDate)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {report.labName && (
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        <Building2 className="w-4 h-4 text-slate-400" />
-                                                        <span className="font-semibold text-slate-600 truncate">
-                                                            {report.labName}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {report.patientName && (
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        <User className="w-4 h-4 text-slate-400" />
-                                                        <span className="font-semibold text-slate-600 truncate">
-                                                            {report.patientName}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {report.doctorName && (
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        <Stethoscope className="w-4 h-4 text-slate-400" />
-                                                        <span className="font-semibold text-slate-600 truncate">
-                                                            {report.doctorName}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-4 mt-3">
-                                                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
-                                                    {report.pageCount} {report.pageCount === 1 ? 'page' : 'pages'}
-                                                </span>
-                                                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
-                                                    {formatFileSize(report.fileSize)}
-                                                </span>
-                                                <span className="text-xs font-bold text-slate-400">
-                                                    Uploaded: {formatDate(report.uploadedAt)}
-                                                </span>
-                                            </div>
-                                        </div>
+                            <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-start gap-3.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0">
+                                        <FileText className="w-5 h-5 text-teal-600" />
                                     </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <button
-                                            onClick={(e) => handleDownload(e, report.id, report.fileName)}
-                                            disabled={downloadingId === report.id}
-                                            className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-                                            title="Download PDF"
-                                        >
-                                            {downloadingId === report.id ? (
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                            ) : (
-                                                <Download className="w-5 h-5" />
+                                    <div className="min-w-0">
+                                        <h3 className="font-bold text-slate-900 text-base truncate">
+                                            {report.fileName}
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium mt-1">
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                {formatDate(report.reportDate || report.uploadedAt)}
+                                            </span>
+                                            {report.labName && (
+                                                <span className="flex items-center gap-1">
+                                                    <Building2 className="w-3.5 h-3.5" />
+                                                    {report.labName}
+                                                </span>
                                             )}
-                                        </button>
-                                        <button
-                                            onClick={() => setExpandedReport(isExpanded ? null : report.id)}
-                                            className="p-2 bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 transition-colors"
-                                        >
-                                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteReport(report.id)}
-                                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        </div>
                                     </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                    <button
+                                        onClick={(e) => handleDownload(e, report.id, report.fileName)}
+                                        disabled={downloadingId === report.id}
+                                        className="p-2.5 bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-700 rounded-xl transition-colors font-semibold text-xs flex items-center gap-1.5"
+                                        title="Download PDF"
+                                    >
+                                        {downloadingId === report.id ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Download className="w-4 h-4" />
+                                        )}
+                                        <span className="hidden sm:inline">PDF</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setExpandedReport(isExpanded ? null : report.id)}
+                                        className="p-2.5 bg-teal-600 text-white hover:bg-teal-700 rounded-xl transition-colors font-bold text-xs flex items-center gap-1.5"
+                                    >
+                                        <span>{isExpanded ? 'Hide Details' : 'View Results'}</span>
+                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Extracted Data */}
+                            {/* Expanded Results Section */}
                             <AnimatePresence>
                                 {isExpanded && (
                                     <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="overflow-hidden"
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="border-t border-slate-100 bg-slate-50/50 p-4 sm:p-5"
                                     >
-                                        <div className="p-6 space-y-6">
-                                            {/* Metadata Section - Dynamic & Boxed */}
-                                            {(() => {
-                                                const hasMetadata = !Array.isArray(report.extractedData) && (report.extractedData as any).metadata;
-                                                if (!hasMetadata) return null;
-
-                                                const metadata = (report.extractedData as any).metadata;
-                                                return (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                                                        {Object.entries(metadata).map(([key, value]) => {
-                                                            if (!value || typeof value !== 'object') return null;
-                                                            return (
-                                                                <div key={key} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
-                                                                        {key.toLowerCase().includes('sample') ? <FlaskConical className="w-4 h-4 text-teal-600" /> :
-                                                                            key.toLowerCase().includes('location') ? <MapPin className="w-4 h-4 text-teal-600" /> :
-                                                                                <Info className="w-4 h-4 text-teal-600" />}
-                                                                        <h4 className="font-bold text-slate-700 capitalize">{key} Details</h4>
+                                        {testResults.length === 0 ? (
+                                            <div className="text-center py-6 text-slate-400 text-xs font-semibold">
+                                                No structured parameters extracted from this report.
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {testResults.map((cat, idx) => (
+                                                    <div key={idx} className="bg-white rounded-xl border border-slate-200/80 p-4">
+                                                        <h4 className="text-xs font-black text-teal-800 uppercase tracking-wider mb-3">
+                                                            {cat.category}
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                                            {cat.tests.map((test, tidx) => (
+                                                                <div key={tidx} className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between gap-2">
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-slate-800 truncate">{test.name}</p>
+                                                                        <p className="text-sm font-black text-slate-900 mt-0.5">
+                                                                            {test.value} <span className="text-[10px] text-slate-400 font-semibold">{test.unit}</span>
+                                                                        </p>
                                                                     </div>
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                                                        {Object.entries(value as object).map(([subKey, subValue]) => (
-                                                                            <div key={subKey} className="text-sm">
-                                                                                <span className="text-slate-500 block text-xs uppercase tracking-wider font-semibold truncate">{subKey}</span>
-                                                                                <span className="text-slate-800 font-medium break-words">{String(subValue)}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            })()}
-
-                                            {/* Results Section */}
-                                            {(() => {
-                                                const categories = Array.isArray(report.extractedData)
-                                                    ? report.extractedData
-                                                    : (report.extractedData as any).results || [];
-
-                                                if (categories && categories.length > 0) {
-                                                    return categories.map((category: TestResult, idx: number) => {
-                                                        const categoryKey = `${report.id}-${category.category}`;
-                                                        const isCategoryExpanded = expandedCategories[categoryKey] !== false; // Default to expanded
-
-                                                        return (
-                                                            <div key={idx} className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-                                                                <button
-                                                                    onClick={() => toggleCategory(report.id, category.category)}
-                                                                    className="w-full p-4 flex items-center justify-between hover:bg-slate-100 transition-colors"
-                                                                >
-                                                                    <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                                                                        {category.category}
-                                                                    </h4>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-xs font-bold text-slate-500 bg-white px-2 py-1 rounded-lg">
-                                                                            {category.tests.length} {category.tests.length === 1 ? 'test' : 'tests'}
+                                                                    {test.status && (
+                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${test.status === 'normal' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                                                                            {test.status}
                                                                         </span>
-                                                                        {isCategoryExpanded ?
-                                                                            <ChevronUp className="w-5 h-5 text-slate-400" /> :
-                                                                            <ChevronDown className="w-5 h-5 text-slate-400" />
-                                                                        }
-                                                                    </div>
-                                                                </button>
-
-                                                                <AnimatePresence>
-                                                                    {isCategoryExpanded && (
-                                                                        <motion.div
-                                                                            initial={{ height: 0, opacity: 0 }}
-                                                                            animate={{ height: 'auto', opacity: 1 }}
-                                                                            exit={{ height: 0, opacity: 0 }}
-                                                                            className="overflow-hidden bg-white"
-                                                                        >
-                                                                            <div className="p-0 overflow-x-auto">
-                                                                                <table className="min-w-full divide-y divide-slate-200">
-                                                                                    <thead className="bg-slate-50/50">
-                                                                                        <tr>
-                                                                                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Test Name</th>
-                                                                                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">Result</th>
-                                                                                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">Reference Value</th>
-                                                                                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/6">Unit</th>
-                                                                                            <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Analysis</th>
-                                                                                        </tr>
-                                                                                    </thead>
-                                                                                    <tbody className="divide-y divide-slate-100">
-                                                                                        {category.tests.map((test, testIdx) => {
-                                                                                            const isAbnormal = test.status === 'high' || test.status === 'low';
-                                                                                            const testKey = `${report.id}-${category.category}-${test.name}-${testIdx}`;
-                                                                                            const isAnalysisOpen = activeAnalysis === testKey;
-                                                                                            const isLoading = loadingAnalysis[testKey];
-
-                                                                                            return (
-                                                                                                <React.Fragment key={testKey}>
-                                                                                                    <tr className={`transition-colors border-b last:border-0 ${isAbnormal ? 'bg-red-50/30' : 'hover:bg-slate-50/50'}`}>
-                                                                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                                                                            <div className="flex flex-col">
-                                                                                                                <span className="text-sm font-semibold text-slate-700">{test.name}</span>
-                                                                                                                {isAbnormal && (
-                                                                                                                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide mt-0.5">Abnormal</span>
-                                                                                                                )}
-                                                                                                            </div>
-                                                                                                        </td>
-                                                                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                                                                            <span className={`text-base font-bold ${isAbnormal ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                                                                                {test.value}
-                                                                                                            </span>
-                                                                                                        </td>
-                                                                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">
-                                                                                                            {test.referenceRange || '-'}
-                                                                                                        </td>
-                                                                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">
-                                                                                                            {test.unit}
-                                                                                                        </td>
-                                                                                                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                                                                            <button
-                                                                                                                onClick={() => handleAnalyze(testKey, test)}
-                                                                                                                disabled={isLoading}
-                                                                                                                className={`p-2 rounded-lg transition-all ${isAnalysisOpen
-                                                                                                                    ? 'bg-blue-100 text-blue-700 shadow-inner'
-                                                                                                                    : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'
-                                                                                                                    }`}
-                                                                                                                title="View Analysis"
-                                                                                                            >
-                                                                                                                {isLoading ? (
-                                                                                                                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                                                                                                                ) : (
-                                                                                                                    <Activity className="w-4 h-4" />
-                                                                                                                )}
-                                                                                                            </button>
-                                                                                                        </td>
-                                                                                                    </tr>
-                                                                                                    {isAnalysisOpen && (
-                                                                                                        <tr className="bg-slate-50/50">
-                                                                                                            <td colSpan={5} className="px-0">
-                                                                                                                <motion.div
-                                                                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                                                                    animate={{ opacity: 1, height: "auto" }}
-                                                                                                                    className="border-b border-t border-blue-100 bg-blue-50/30"
-                                                                                                                >
-                                                                                                                    <div className="p-6">
-                                                                                                                        <div className="flex flex-col gap-4">
-                                                                                                                            <div>
-                                                                                                                                <h5 className="text-sm font-bold text-slate-900 mb-4">
-                                                                                                                                    Result Analysis
-                                                                                                                                </h5>
-
-                                                                                                                                {isLoading ? (
-                                                                                                                                    <div className="flex items-center gap-3 text-slate-500 py-6 px-2">
-                                                                                                                                        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                                                                                                                                        <span className="text-sm font-medium">Generating AI insights...</span>
-                                                                                                                                    </div>
-                                                                                                                                ) : (
-                                                                                                                                    <div
-                                                                                                                                        className="prose prose-sm max-w-none text-slate-600 space-y-4"
-                                                                                                                                        dangerouslySetInnerHTML={{ __html: analysisData[testKey] || '' }}
-                                                                                                                                    />
-                                                                                                                                )}
-                                                                                                                            </div>
-
-                                                                                                                            {!isLoading && analysisData[testKey] && (
-                                                                                                                                <div className="mt-2 pt-3 border-t border-blue-200/50">
-                                                                                                                                    <p className="text-xs text-slate-400 font-medium italic flex items-center gap-1.5">
-                                                                                                                                        <Info className="w-3 h-3" />
-                                                                                                                                        Disclaimer: This analysis is generated by automated systems and is for educational purposes only. It is not a medical diagnosis. Please consult your doctor for professional advice.
-                                                                                                                                    </p>
-                                                                                                                                </div>
-                                                                                                                            )}
-                                                                                                                        </div>
-                                                                                                                    </div>
-                                                                                                                </motion.div>
-                                                                                                            </td>
-                                                                                                        </tr>
-                                                                                                    )}
-                                                                                                </React.Fragment>
-                                                                                            );
-                                                                                        })}
-                                                                                    </tbody>
-                                                                                </table>
-                                                                            </div>
-                                                                        </motion.div>
                                                                     )}
-                                                                </AnimatePresence>
-                                                            </div>
-                                                        );
-                                                    });
-                                                } else {
-                                                    return (
-                                                        <div className="text-center py-8">
-                                                            <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                                            <p className="text-slate-500 font-medium">
-                                                                No test results could be extracted from this report
-                                                            </p>
-                                                            <p className="text-slate-400 text-sm mt-1">
-                                                                The PDF may be scanned or in an unsupported format
-                                                            </p>
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                    );
-                                                }
-                                            })()}
-                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                        </motion.div>
+                        </div>
                     );
-                })}
-            </div>
+                })
+            )}
         </div>
     );
-
-    const content = reports.length === 0 ? renderEmptyState() : renderContent();
 
     if (variant === 'page') {
         return (
             <div className="min-h-screen bg-[#F7F9FA] flex flex-col">
                 <DashboardNavbar user={user} />
-                <main className="flex-grow pt-28 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+                <main className="flex-grow pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-black text-slate-900">Lab Reports & Diagnostics</h1>
+                        <p className="text-xs text-slate-500 font-medium mt-1">
+                            Longitudinal laboratory reports, extracted blood markers, and PDF documents.
+                        </p>
+                    </div>
                     {content}
                 </main>
                 <Footer />

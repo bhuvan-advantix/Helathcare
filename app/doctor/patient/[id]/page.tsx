@@ -86,6 +86,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     const consultationEvents = timeline.filter((e: any) =>
         e.eventType === 'appointment' && e.status === 'completed' && e.createdBy === 'doctor'
     );
+    const latestConsultationDate = consultationEvents.reduce((latest: string, event: any) => {
+        return event.eventDate > latest ? event.eventDate : latest;
+    }, '');
 
     const consultationHistory = consultationEvents.map((event: any) => {
         const eventDate = event.eventDate; // YYYY-MM-DD
@@ -102,6 +105,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         const vitalsOnDate = paramsData.filter((p: any) => {
             const pDate = (p.testDate || '').toString().slice(0, 10);
             return pDate === eventDate;
+        });
+
+        const reportsOnDate = reports.filter((report: any) => {
+            const reportDate = (report.reportDate || '').toString().slice(0, 10);
+            return reportDate === eventDate;
         });
 
         // Private doctor note closest in time to this event (same doctor)
@@ -123,8 +131,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         if (diagMatch) diagnosis = diagMatch[1].trim();
         if (adviceMatch) patientAdvice = adviceMatch[1].trim();
 
-        // Find follow-up event: pending appointment by same doctor, with eventDate AFTER this consultation's date
-        const followUpEvent = event.doctorId
+        const cleanedSummary = desc
+            .replace(/Diagnosis:\s*.+?(?:\.|$|\n)/i, '')
+            .replace(/Doctor's Advice:\s*/i, '')
+            .trim();
+
+        // Find follow-up event for the latest completed review only, so older visits do not all show the same next date.
+        const followUpEvent = event.doctorId && eventDate === latestConsultationDate
             ? timeline.find((e: any) =>
                 e.eventType === 'appointment' &&
                 e.status === 'pending' &&
@@ -144,8 +157,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             doctorClinic: doctorInfo?.clinicName || '',
             diagnosis,
             patientAdvice,
+            visitSummary: cleanedSummary || desc,
             prescribedMeds,
             vitals: vitalsOnDate,
+            reportsOnDate,
             privateNote: privateNote?.noteContent || null,
             followUpDate: followUpEvent?.eventDate || null,
         };
