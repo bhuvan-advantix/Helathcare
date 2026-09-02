@@ -8,6 +8,7 @@ import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import Footer from "@/components/Footer";
 import DoctorPatientProfileView from "@/components/doctor/DoctorPatientProfileView";
 import { autoStopExpiredMedications } from "@/app/actions/medications";
+import { getDiagnosticsForPatient } from "@/app/actions/diagnostic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
@@ -40,7 +41,6 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
     // Auto-stop any medications whose duration has passed
     await autoStopExpiredMedications(patient.id);
-
     // Parallel Fetching
     const [
         reports,
@@ -52,6 +52,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         privateNotes,
         allDoctors,
         staffVitals,
+        diagnostics,
     ] = await Promise.all([
         db.select().from(labReports).where(eq(labReports.patientId, patient.id)).orderBy(desc(labReports.uploadedAt)),
         db.select().from(healthParameters).where(eq(healthParameters.patientId, patient.id)).orderBy(desc(healthParameters.testDate)),
@@ -65,6 +66,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         db.select({ id: doctors.id, userId: doctors.userId, specialization: doctors.specialization, clinicName: doctors.clinicName }).from(doctors),
         // Fetch staff-recorded vitals (BP, temp, pulse, SpO2, etc.) newest first
         db.select().from(patientVitals).where(eq(patientVitals.patientId, patient.id)).orderBy(desc(patientVitals.recordedAt)).limit(5),
+        getDiagnosticsForPatient(patient.id),
     ]);
 
     const doctorMap: Record<string, { name: string; specialization: string; clinicName: string }> = {};
@@ -191,6 +193,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     privateNotes={enrichedPrivateNotes}
                     consultationHistory={consultationHistory}
                     staffVitals={staffVitals.map(v => ({ ...v, recordedAt: v.recordedAt ? v.recordedAt.toISOString() : null }))}
+                    diagnostics={diagnostics}
                 />
             </main>
             <Footer />

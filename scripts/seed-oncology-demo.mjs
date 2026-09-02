@@ -674,16 +674,16 @@ cases[0].reports = [
         { category: 'Surgical Pathology', tests: [test('Invasive Tumor Size', '1.4', 'cm', '<2.0 cm for T1 pattern'), test('Margins', 'Negative', '', 'No ink on tumor'), test('Sentinel Nodes', '0/2', '', 'No nodal metastasis'), test('Lymphovascular Invasion', 'Not identified', '', 'Absent')] },
     ], { pathology: 'Lumpectomy pathology confirmed 1.4 cm invasive carcinoma, negative margins, and 0/2 sentinel nodes' }),
     report(cases[0], 'demo-stage1-report-4', '2026-05-16', 'Maya Srinivasan - Surveillance Markers.pdf', [
-        { category: 'Tumor Marker Surveillance', tests: [test('CA 15-3', '18', 'U/mL', '<30'), test('CEA', '1.9', 'ng/mL', '<3.0')] },
-        { category: 'Complete Blood Count', tests: [test('Hemoglobin', '12.6', 'g/dL', '12.0-15.5')] },
-    ], { keyFinding: 'Surveillance tumor markers remained inside reference limits' }),
+        { category: 'Tumor Marker Surveillance', tests: [test('CA 15-3', '24', 'U/mL', '<30', 'high'), test('CEA', '1.9', 'ng/mL', '<3.0')] },
+        { category: 'Complete Blood Count', tests: [test('Hemoglobin', '11.4', 'g/dL', '12.0-15.5', 'low'), test('WBC Count', '3.4', '10^3/uL', '4.0-11.0', 'low')] },
+    ], { keyFinding: 'Surveillance tumor markers and CBC reviewed' }),
     report(cases[0], 'demo-stage1-report-5', '2026-08-20', 'Maya Srinivasan - One Year Surveillance Review.pdf', [
         { category: 'Imaging Follow-up', tests: [test('Mammography Assessment', 'Post-treatment change only', '', '', 'normal'), test('Regional Nodes', 'No suspicious adenopathy', '', '', 'normal')] },
     ], { imaging: 'One-year mammogram stable with post-treatment change only' }),
     report(cases[0], 'demo-stage1-report-7', '2026-08-20', 'Maya Srinivasan - Oncology Context Panel.pdf', [
-        { category: 'Breast Marker Context', tests: [test('CA 15-3', '17', 'U/mL', '<30'), test('CA 27.29', '22', 'U/mL', '<38'), test('CEA', '1.8', 'ng/mL', '<3.0')] },
+        { category: 'Breast Marker Context', tests: [test('CA 15-3', '24', 'U/mL', '<30', 'high'), test('Hemoglobin', '11.4', 'g/dL', '12.0-15.5', 'low'), test('WBC Count', '3.4', '10^3/uL', '4.0-11.0', 'low')] },
         { category: 'Safety and Metabolic Context', tests: [test('AST', '22', 'U/L', '10-40'), test('ALT', '19', 'U/L', '7-56'), test('Calcium', '9.4', 'mg/dL', '8.6-10.2')] },
-    ], { keyFinding: 'Breast surveillance markers and treatment-safety labs remained stable' }),
+    ], { keyFinding: 'Breast surveillance markers and treatment-safety labs reviewed' }),
 ];
 
 cases[1].reports = [
@@ -700,15 +700,15 @@ cases[1].reports = [
         { category: 'Pathology', tests: [test('Gleason Score', '3+4', '', '', 'high'), test('Grade Group', '2', '', '', 'high')] },
     ], { pathology: 'Adenocarcinoma Gleason 3+4, grade group 2' }),
     report(cases[1], 'demo-stage2-report-6', '2025-12-16', 'Raman Iyer - End of Radiation Review.pdf', [
-        { category: 'Treatment Monitoring', tests: [test('PSA', '2.9', 'ng/mL', '<4.0 after treatment trend'), test('Testosterone', '38', 'ng/dL', '<50 during ADT'), test('Hemoglobin', '13.4', 'g/dL', '13.5-17.5', 'low')] },
+        { category: 'Treatment Monitoring', tests: [test('PSA', '2.9', 'ng/mL', '<4.0 after treatment trend'), test('Testosterone', '38', 'ng/dL', '<50 during ADT'), test('Hemoglobin', '11.8', 'g/dL', '13.5-17.5', 'low')] },
     ], { keyFinding: 'End-of-radiation review showed PSA decline with castrate-range testosterone during ADT' }),
     report(cases[1], 'demo-stage2-report-5', '2026-08-26', 'Raman Iyer - PSA Treatment Response.pdf', [
-        { category: 'Prostate Marker', tests: [test('PSA', '0.7', 'ng/mL', '<4.0')] },
-    ], { keyFinding: 'PSA decreased after definitive radiation and short-course ADT' }),
+        { category: 'Prostate Marker', tests: [test('Free PSA', '11', '%', '>25', 'low'), test('PSA', '4.6', 'ng/mL', '<4.0', 'high'), test('Hemoglobin', '11.8', 'g/dL', '13.5-17.5', 'low')] },
+    ], { keyFinding: 'Free PSA and Hemoglobin flagged during surveillance review' }),
     report(cases[1], 'demo-stage2-report-7', '2026-08-26', 'Raman Iyer - Prostate Surveillance Context Panel.pdf', [
-        { category: 'Prostate Surveillance', tests: [test('PSA', '0.7', 'ng/mL', 'Falling from diagnostic peak'), test('Alkaline Phosphatase', '82', 'U/L', '44-147'), test('Calcium', '9.2', 'mg/dL', '8.6-10.2')] },
-        { category: 'Treatment Safety', tests: [test('Hemoglobin', '13.6', 'g/dL', '13.5-17.5'), test('Creatinine', '0.9', 'mg/dL', '0.7-1.3')] },
-    ], { keyFinding: 'PSA remained suppressed with no biochemical or bone-turnover concern' }),
+        { category: 'Prostate Surveillance', tests: [test('Free PSA', '11', '%', '>25 (low)', 'low'), test('PSA', '4.6', 'ng/mL', '<4.0', 'high'), test('Hemoglobin', '11.8', 'g/dL', '13.5-17.5', 'low')] },
+        { category: 'Treatment Safety', tests: [test('Creatinine', '0.9', 'mg/dL', '0.7-1.3')] },
+    ], { keyFinding: 'Prostate surveillance panel flagged low free PSA and mild anemia' }),
 ];
 
 cases[2].reports = [
@@ -730,13 +730,13 @@ cases[2].reports = [
         { category: 'Treatment Safety', tests: [test('ALT', '24', 'U/L', '7-56'), test('Creatinine', '0.8', 'mg/dL', '0.6-1.1')] },
     ], { imaging: 'Post-treatment CT showed partial response without distant progression' }),
     report(cases[2], 'demo-stage3-report-5', '2026-08-28', 'Farah Khan - Consolidation Therapy Surveillance.pdf', [
-        { category: 'Chemistry', tests: [test('LDH', '196', 'U/L', '140-280'), test('Alkaline Phosphatase', '88', 'U/L', '44-147')] },
+        { category: 'Chemistry', tests: [test('CYFRA 21-1', '4.8', 'ng/mL', '<3.3', 'high'), test('CRP', '14.5', 'mg/L', '<5.0', 'high'), test('Hemoglobin', '11.2', 'g/dL', '12.0-15.5', 'low')] },
         { category: 'Imaging Follow-up', tests: [test('CT Chest Assessment', 'Stable post-treatment change', '', '', 'normal')] },
-    ], { keyFinding: 'Interval CT remained stable during consolidation immunotherapy' }),
+    ], { keyFinding: 'Interval CT remained stable during consolidation immunotherapy with elevated markers' }),
     report(cases[2], 'demo-stage3-report-7', '2026-08-28', 'Farah Khan - Lung Oncology Marker Context Panel.pdf', [
-        { category: 'Lung Marker Context', tests: [test('CYFRA 21-1', '2.1', 'ng/mL', '<3.3'), test('NSE', '10.8', 'ng/mL', '<16.3'), test('ProGRP', '42', 'pg/mL', '<75'), test('CEA', '2.4', 'ng/mL', '<3.0')] },
-        { category: 'Inflammation and Safety', tests: [test('CRP', '4.8', 'mg/L', '<5'), test('ESR', '18', 'mm/hr', '<30'), test('TSH', '2.1', 'mIU/L', '0.4-4.0')] },
-    ], { keyFinding: 'Lung marker context and immunotherapy-safety labs remained within expected monitoring range' }),
+        { category: 'Lung Marker Context', tests: [test('CYFRA 21-1', '4.8', 'ng/mL', '<3.3', 'high'), test('CRP', '14.5', 'mg/L', '<5.0', 'high'), test('Hemoglobin', '11.2', 'g/dL', '12.0-15.5', 'low')] },
+        { category: 'Inflammation and Safety', tests: [test('TSH', '2.1', 'mIU/L', '0.4-4.0')] },
+    ], { keyFinding: 'Lung marker context flagged elevated CYFRA 21-1, elevated CRP, and mild anemia' }),
 ];
 
 cases[3].reports = [
@@ -757,13 +757,13 @@ cases[3].reports = [
         { category: 'Imaging Response', tests: [test('Largest Liver Lesion', '2.1', 'cm', 'Decreased from 3.4 cm'), test('New Lesions', 'Not identified', '', 'Absent'), test('RECIST Impression', 'Partial response', '', 'Response assessment')] },
     ], { keyFinding: 'Interim restaging showed falling CEA and partial response in liver lesions' }),
     report(cases[3], 'demo-stage4-report-5', '2026-08-24', 'Daniel Mathew - CEA and Restaging Review.pdf', [
-        { category: 'Tumor Marker', tests: [test('CEA', '8.6', 'ng/mL', '<3.0', 'high')] },
-        { category: 'Treatment Monitoring', tests: [test('CT Response', 'Partial response', '', '', 'normal'), test('Hemoglobin', '12.4', 'g/dL', '13.5-17.5', 'low')] },
-    ], { keyFinding: 'CEA decreased from 42 to 8.6 ng/mL with partial CT response' }),
+        { category: 'Tumor Marker', tests: [test('CEA', '8.6', 'ng/mL', '<3.0', 'high'), test('CA 19-9', '45', 'U/mL', '<37', 'high'), test('Hemoglobin', '10.4', 'g/dL', '13.5-17.5', 'low')] },
+        { category: 'Treatment Monitoring', tests: [test('CT Response', 'Partial response', '', '', 'normal')] },
+    ], { keyFinding: 'CEA, CA 19-9, and Hemoglobin monitored during systemic therapy' }),
     report(cases[3], 'demo-stage4-report-7', '2026-08-24', 'Daniel Mathew - Colorectal Oncology Context Panel.pdf', [
-        { category: 'Colorectal Marker Context', tests: [test('CEA', '8.6', 'ng/mL', 'Falling from 42 ng/mL', 'high'), test('CA 19-9', '28', 'U/mL', '<37'), test('LDH', '224', 'U/L', '140-280')] },
-        { category: 'Treatment Safety', tests: [test('Platelet Count', '178', '10^3/uL', '150-450'), test('ANC', '2.8', '10^3/uL', '1.5-8.0'), test('Albumin', '3.8', 'g/dL', '3.5-5.0')] },
-    ], { keyFinding: 'Colorectal marker and chemotherapy-safety panel supported continued systemic therapy' }),
+        { category: 'Colorectal Marker Context', tests: [test('CEA', '8.6', 'ng/mL', 'Falling from 42 ng/mL', 'high'), test('CA 19-9', '45', 'U/mL', '<37', 'high'), test('Hemoglobin', '10.4', 'g/dL', '13.5-17.5', 'low')] },
+        { category: 'Treatment Safety', tests: [test('Platelet Count', '178', '10^3/uL', '150-450'), test('Albumin', '3.8', 'g/dL', '3.5-5.0')] },
+    ], { keyFinding: 'Colorectal marker and chemotherapy-safety panel flagged CEA, CA 19-9, and anemia' }),
 ];
 
 function nodeType(id, title) {

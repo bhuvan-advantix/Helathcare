@@ -198,23 +198,26 @@ function collectLatestMarkers(healthParams: HealthParamLike[], reports: ReportLi
         return MARKER_TERMS.some(term => name.includes(term));
     });
 
+    const PRIMARY_TUMOR_MARKERS = ['cea', 'ca 15-3', 'ca-15-3', 'psa', 'free psa', 'ca-125', 'ca 125', 'ca 19-9', 'afp', 'he4'];
+
     const map = new Map<string, OncologyBrief['markers'][number]>();
     [...fromHealthParams, ...fromReports]
         .filter(marker => marker.name && marker.value)
-        .sort((a, b) => {
-            const at = parseDate(a.date)?.getTime() ?? 0;
-            const bt = parseDate(b.date)?.getTime() ?? 0;
-            return at - bt;
-        })
         .forEach(marker => map.set(marker.name.toLowerCase(), marker));
 
-    return Array.from(map.values())
-        .sort((a, b) => {
-            const at = parseDate(a.date)?.getTime() ?? 0;
-            const bt = parseDate(b.date)?.getTime() ?? 0;
-            return bt - at;
-        })
-        .slice(0, 6);
+    const sortedMarkers = Array.from(map.values()).sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aIsTumor = PRIMARY_TUMOR_MARKERS.some(t => aName.includes(t));
+        const bIsTumor = PRIMARY_TUMOR_MARKERS.some(t => bName.includes(t));
+        if (aIsTumor && !bIsTumor) return -1;
+        if (!aIsTumor && bIsTumor) return 1;
+        const at = parseDate(a.date)?.getTime() ?? 0;
+        const bt = parseDate(b.date)?.getTime() ?? 0;
+        return bt - at;
+    });
+
+    return sortedMarkers.slice(0, 6);
 }
 
 function getDataWindow(timeline: TimelineEventLike[], reports: ReportLike[]) {

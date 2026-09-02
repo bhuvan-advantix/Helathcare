@@ -224,7 +224,7 @@ export default function HealthTimeline({ user }: { user: any }) {
                         <div className="relative space-y-6">
                             {/* Vertical Line */}
                             {/* Vertical Line */}
-                            <div className="absolute left-[19px] sm:left-[25px] top-6 bottom-6 w-0 border-l-2 border-dashed border-teal-200/60"></div>
+                            <div className="absolute left-[18px] sm:left-[24px] top-6 bottom-6 w-0 border-l-2 border-dashed border-teal-300"></div>
 
                             {pastEvents.length === 0 && (
                                 <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">

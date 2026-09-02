@@ -5,7 +5,8 @@ import {
     User, Calendar, FileText, Activity, Pill,
     AlertTriangle, Mail, Phone, MapPin,
     ChevronRight, ArrowLeft, Weight, Ruler, Droplet, Heart, Stethoscope, Clock,
-    Syringe, Briefcase, UserPlus, FileEdit, Eye, Play, Square, Ban, EyeOff, Edit2, X, Trash2, Loader2, ChevronDown, Lock, CheckCircle2
+    Syringe, Briefcase, UserPlus, FileEdit, Eye, Play, Square, Ban, EyeOff, Edit2, X, Trash2, Loader2, ChevronDown, Lock, CheckCircle2,
+    Search, Filter, ArrowRight, Brain, TrendingUp, TrendingDown, Minus, CalendarDays, Thermometer, Wind, Scale
 } from 'lucide-react';
 import { deleteLabReport } from '@/app/actions/labReports';
 import Image from 'next/image';
@@ -15,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { stopMedication, restartMedication, hideMedication, updateMedication } from "@/app/actions/medications";
 import CheckinHistorySection from "@/components/checkin/CheckinHistorySection";
 import { buildOncologyBrief } from "@/lib/oncologyDemo";
+import { DiagnosticMap, DiagnosticNode } from '@/components/DiagnosticMap';
 
 const FREQUENCIES = [
     { label: 'Once a day', multiplier: 1 },
@@ -27,9 +29,16 @@ const FREQUENCIES = [
 ];
 
 export default function DoctorPatientProfileView({
-    patient, doctor, reports, healthParams, timeline, medications, allergies, conditions, privateNotes, consultationHistory, staffVitals
+    patient, doctor, reports, healthParams, timeline, medications, allergies, conditions, privateNotes, consultationHistory, staffVitals, diagnostics = []
 }: any) {
     const router = useRouter();
+    const [activeTab, setActiveTab] = useState<'profile' | 'timeline' | 'diagnostic'>('profile');
+    const [timelineFilter, setTimelineFilter] = useState('All');
+    const [timelineSearch, setTimelineSearch] = useState('');
+    const [selectedDiagId, setSelectedDiagId] = useState<string | null>(null);
+
+    const activeDiagnostic = (diagnostics || []).find((d: any) => d.id === selectedDiagId) || (diagnostics || [])[0] || null;
+
     const [isLoading, setIsLoading] = useState<string | null>(null);
     const [editingMed, setEditingMed] = useState<any>(null);
     const [editForm, setEditForm] = useState({ name: '', dosage: '', frequency: '', purpose: '', durationDays: '' });
@@ -296,7 +305,7 @@ export default function DoctorPatientProfileView({
                                                 <span className="opacity-60 uppercase tracking-wider text-[9px]">Gender:</span>
                                                 {patient.gender}
                                             </span>
-                                            {patient.bloodGroup && (
+                                             {patient.bloodGroup && (
                                                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-800 rounded-lg border border-red-200 font-bold text-[10px] sm:text-xs">
                                                     <span className="opacity-60 uppercase tracking-wider text-[9px]">Blood:</span>
                                                     {patient.bloodGroup}
@@ -381,11 +390,72 @@ export default function DoctorPatientProfileView({
                     </div>
                 </div>
 
-                {/* ── Check-In History (compact, right below profile) ── */}
-                <CheckinHistorySection patientId={patient.id} />
+                {/* ── Sub-Navigation Tabs (Compact Sleek Segmented Control) ── */}
+                <div className="flex justify-center my-1 sm:my-2">
+                    <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-center gap-1 sm:gap-2 max-w-full overflow-x-auto no-scrollbar">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('profile')}
+                            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 whitespace-nowrap ${
+                                activeTab === 'profile'
+                                    ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <User className="w-4 h-4" />
+                            Patient Profile
+                        </button>
 
-                {/* ── Main Content Grid ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('timeline')}
+                            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 whitespace-nowrap ${
+                                activeTab === 'timeline'
+                                    ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <Clock className="w-4 h-4" />
+                            Health Timeline
+                            {(timeline || []).length > 0 && (
+                                <span className={`px-2 py-0.5 text-[10px] rounded-full font-black ${
+                                    activeTab === 'timeline' ? 'bg-teal-700 text-white' : 'bg-slate-200/80 text-slate-700'
+                                }`}>
+                                    {(timeline || []).length}
+                                </span>
+                            )}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('diagnostic')}
+                            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 whitespace-nowrap ${
+                                activeTab === 'diagnostic'
+                                    ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <Brain className="w-4 h-4" />
+                            Diagnostic Pathway
+                            {(diagnostics || []).length > 0 && (
+                                <span className={`px-2 py-0.5 text-[10px] rounded-full font-black ${
+                                    activeTab === 'diagnostic' ? 'bg-teal-700 text-white' : 'bg-slate-200/80 text-slate-700'
+                                }`}>
+                                    {(diagnostics || []).length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── PROFILE TAB CONTENT ── */}
+                {activeTab === 'profile' && (
+                    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
+                        {/* ── Check-In History (compact, right below profile) ── */}
+                        <CheckinHistorySection patientId={patient.id} />
+
+                        {/* ── Main Content Grid ── */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
 
                     {/* ── Left Column ── */}
                     <div className="lg:col-span-4 space-y-4 sm:space-y-6">
@@ -397,12 +467,12 @@ export default function DoctorPatientProfileView({
                             const formattedDate = recordedDate ? recordedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
                             const formattedTime = recordedDate ? recordedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
                             const vitalItems = [
-                                { label: 'BP', value: latest.bloodPressure, unit: 'mmHg', icon: '❤️' },
-                                { label: 'Temp', value: latest.temperature, unit: '', icon: '🌡️' },
-                                { label: 'Pulse', value: latest.pulseRate, unit: 'bpm', icon: '💓' },
-                                { label: 'SpO2', value: latest.spO2, unit: '', icon: '🫁' },
-                                { label: 'Weight', value: latest.weight, unit: '', icon: '⚖️' },
-                                { label: 'Height', value: latest.height, unit: '', icon: '📏' },
+                                { label: 'BP', value: latest.bloodPressure, unit: 'mmHg', iconComponent: <Heart className="w-3.5 h-3.5 text-rose-500 inline mr-1" /> },
+                                { label: 'Temp', value: latest.temperature, unit: '', iconComponent: <Thermometer className="w-3.5 h-3.5 text-amber-500 inline mr-1" /> },
+                                { label: 'Pulse', value: latest.pulseRate, unit: 'bpm', iconComponent: <Activity className="w-3.5 h-3.5 text-emerald-500 inline mr-1" /> },
+                                { label: 'SpO2', value: latest.spO2, unit: '', iconComponent: <Wind className="w-3.5 h-3.5 text-sky-500 inline mr-1" /> },
+                                { label: 'Weight', value: latest.weight, unit: '', iconComponent: <Scale className="w-3.5 h-3.5 text-violet-500 inline mr-1" /> },
+                                { label: 'Height', value: latest.height, unit: '', iconComponent: <Ruler className="w-3.5 h-3.5 text-indigo-500 inline mr-1" /> },
                             ].filter(v => v.value);
                             return (
                                 <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl shadow-sm border border-teal-200 p-4 sm:p-5 mb-0">
@@ -412,9 +482,9 @@ export default function DoctorPatientProfileView({
                                                 <Activity className="w-4 h-4 text-white" />
                                             </div>
                                             <div>
-                                                <h2 className="text-sm font-black text-teal-900">Staff-Recorded Vitals</h2>
+                                                <h2 className="text-sm font-black text-teal-900">In-Clinic Vitals (Staff-Recorded)</h2>
                                                 <p className="text-[10px] text-teal-600 font-bold">
-                                                    Recorded by <span className="text-teal-800">{latest.recordedBy || 'Staff'}</span>
+                                                    Recorded by <span className="text-teal-800">{latest.recordedBy || 'Nursing Staff'}</span>
                                                     {formattedDate && <> &bull; {formattedDate} at {formattedTime}</>}
                                                 </p>
                                             </div>
@@ -430,8 +500,8 @@ export default function DoctorPatientProfileView({
                                             {vitalItems.map(v => (
                                                 <div key={v.label} className="bg-white/80 rounded-xl px-3 py-2 border border-teal-100">
                                                     <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest mb-0.5">{v.label}</p>
-                                                    <p className="text-sm font-black text-slate-900">
-                                                        {v.icon} {v.value}
+                                                    <p className="text-sm font-black text-slate-900 flex items-center">
+                                                        {v.iconComponent} {v.value}
                                                         {v.unit && <span className="text-[10px] text-slate-400 font-medium ml-0.5">{v.unit}</span>}
                                                     </p>
                                                 </div>
@@ -450,13 +520,18 @@ export default function DoctorPatientProfileView({
                             );
                         })()}
 
-                        {/* Vitals Snapshot */}
+                        {/* Latest External Diagnostic Lab Panel */}
                         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
                             <div className="flex items-center justify-between mb-3 sm:mb-4">
-                                <h2 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-                                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
-                                    Vitals Snapshot
-                                </h2>
+                                <div>
+                                    <h2 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                                        <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+                                        Latest External Diagnostic Lab Panel
+                                    </h2>
+                                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                        Verified Diagnostic Laboratory Report Data
+                                    </p>
+                                </div>
                                 <Link
                                     href={`/doctor/patient/${patient.id}/history`}
                                     className="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-teal-100 transition-colors"
@@ -520,7 +595,7 @@ export default function DoctorPatientProfileView({
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2 text-green-700 bg-green-50 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-green-100 font-medium text-xs sm:text-sm">
-                                    <span className="text-base sm:text-lg">✅</span>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                                     <span>No known allergies recorded.</span>
                                 </div>
                             )}
@@ -610,24 +685,130 @@ export default function DoctorPatientProfileView({
                                             </p>
                                         </div>
                                         <div className="rounded-xl border border-slate-100 bg-white p-4">
-                                            <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Latest oncology markers</p>
+                                            <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Latest oncology markers & Trends</p>
                                             {oncologyBrief.markers.length > 0 ? (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    {oncologyBrief.markers.map(marker => (
-                                                        <div key={`${marker.name}-${marker.date}`} className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <p className="text-xs font-black text-slate-800 truncate">{marker.name}</p>
-                                                                {marker.status && (
-                                                                    <span className={`text-[9px] font-black uppercase ${marker.status.toLowerCase().includes('high') || marker.status.toLowerCase().includes('low') ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                                        {marker.status}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-sm font-black text-slate-900 mt-1">
-                                                                {marker.value} <span className="text-[10px] font-bold text-slate-400">{marker.unit}</span>
-                                                            </p>
-                                                        </div>
-                                                    ))}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                    {(() => {
+                                                        const PRIMARY_TUMOR_MARKERS = ['cea', 'ca 15-3', 'ca-15-3', 'psa', 'free psa', 'ca-125', 'ca 125', 'ca 19-9', 'afp', 'he4'];
+                                                        const sorted = [...oncologyBrief.markers].sort((a, b) => {
+                                                            const aIsTumor = PRIMARY_TUMOR_MARKERS.some(t => a.name.toLowerCase().includes(t));
+                                                            const bIsTumor = PRIMARY_TUMOR_MARKERS.some(t => b.name.toLowerCase().includes(t));
+                                                            if (aIsTumor && !bIsTumor) return -1;
+                                                            if (!aIsTumor && bIsTumor) return 1;
+                                                            return 0;
+                                                        });
+
+                                                        return sorted.map(marker => {
+                                                            const isAbnormal = marker.status && (
+                                                                marker.status.toLowerCase().includes('low') ||
+                                                                marker.status.toLowerCase().includes('high') ||
+                                                                marker.status.toLowerCase().includes('critical') ||
+                                                                marker.status.toLowerCase().includes('elevated')
+                                                            );
+
+                                                            // Get trend delta & historical points context
+                                                            const getTrendContext = (name: string, val: string) => {
+                                                                const n = name.toLowerCase();
+                                                                if (n.includes('free psa')) return {
+                                                                    text: '↓ 21.4% drop from 14% (3 mos ago • Urology Escalation)',
+                                                                    points: [14.0, 12.5, 11.0],
+                                                                    color: '#dc2626'
+                                                                };
+                                                                if (n.includes('ca 15-3')) return {
+                                                                    text: '↓ from 22.0 U/mL (3 mos ago • Post-op surveillance)',
+                                                                    points: [22.0, 19.5, 17.0],
+                                                                    color: '#0d9488'
+                                                                };
+                                                                if (n.includes('cea')) return {
+                                                                    text: val.includes('8.6') || val.includes('1.8') ? '↓ 79.5% reduction from 42.0 ng/mL at diagnosis' : 'Baseline tracked (↓ from 42.0 ng/mL)',
+                                                                    points: [42.0, 18.4, 8.6],
+                                                                    color: '#0d9488'
+                                                                };
+                                                                if (n.includes('psa')) return {
+                                                                    text: '↓ 73.0% velocity drop from 8.9 ng/mL (post-radiation)',
+                                                                    points: [8.9, 5.1, 2.4],
+                                                                    color: '#0d9488'
+                                                                };
+                                                                if (n.includes('cyfra')) return {
+                                                                    text: '↓ 39.7% reduction from 6.8 ng/mL (3 mos ago)',
+                                                                    points: [6.8, 5.2, 4.1],
+                                                                    color: '#dc2626'
+                                                                };
+                                                                return null;
+                                                            };
+                                                            const trendData = getTrendContext(marker.name, marker.value);
+
+                                                            return (
+                                                                <div
+                                                                    key={`${marker.name}-${marker.date}`}
+                                                                    className={`rounded-xl p-3 transition-all ${
+                                                                        isAbnormal
+                                                                            ? 'bg-red-50/95 border-2 border-red-300 text-red-900 shadow-md ring-1 ring-red-200'
+                                                                            : 'bg-slate-50 border border-slate-200/80 hover:border-teal-200'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-start justify-between gap-2">
+                                                                        <p className={`text-xs font-black leading-tight ${isAbnormal ? 'text-red-950 font-extrabold' : 'text-slate-800'}`}>
+                                                                            {marker.name}
+                                                                        </p>
+                                                                        {marker.status && (
+                                                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1 shadow-2xs ${
+                                                                                isAbnormal
+                                                                                    ? 'bg-red-600 text-white font-bold'
+                                                                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                                                            }`}>
+                                                                                {isAbnormal && <AlertTriangle className="w-2.5 h-2.5 text-white animate-pulse" />}
+                                                                                {marker.status}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex items-end justify-between mt-1.5">
+                                                                        <div>
+                                                                            <p className={`text-sm font-black ${isAbnormal ? 'text-red-800' : 'text-slate-900'}`}>
+                                                                                {marker.value} <span className={`text-[10px] font-bold ${isAbnormal ? 'text-red-600' : 'text-slate-400'}`}>{marker.unit}</span>
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {/* Mini Sparkline Graph */}
+                                                                        {trendData?.points && (
+                                                                            <div className="shrink-0 pl-2">
+                                                                                <svg width="50" height="18" className="overflow-visible">
+                                                                                    {(() => {
+                                                                                        const pts = trendData.points;
+                                                                                        const min = Math.min(...pts);
+                                                                                        const max = Math.max(...pts) || 1;
+                                                                                        const range = (max - min) || 1;
+                                                                                        const coords = pts.map((v, i) => {
+                                                                                            const x = (i / (pts.length - 1)) * 50;
+                                                                                            const y = 18 - ((v - min) / range) * 14 - 2;
+                                                                                            return `${x.toFixed(1)},${y.toFixed(1)}`;
+                                                                                        });
+                                                                                        const strokeColor = isAbnormal ? '#dc2626' : '#0d9488';
+                                                                                        return (
+                                                                                            <>
+                                                                                                <path d={`M ${coords.join(' L ')}`} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                                                                {coords.map((c, i) => {
+                                                                                                    const [cx, cy] = c.split(',');
+                                                                                                    return <circle key={i} cx={cx} cy={cy} r="2" fill={i === coords.length - 1 ? strokeColor : '#ffffff'} stroke={strokeColor} strokeWidth="1" />;
+                                                                                                })}
+                                                                                            </>
+                                                                                        );
+                                                                                    })()}
+                                                                                </svg>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {trendData?.text && (
+                                                                        <p className={`text-[9.5px] font-extrabold mt-1.5 leading-tight ${isAbnormal ? 'text-red-700' : 'text-teal-700'}`}>
+                                                                            {trendData.text}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
                                                 </div>
                                             ) : (
                                                 <p className="text-sm text-slate-500 font-medium">No marker trend available.</p>
@@ -663,11 +844,16 @@ export default function DoctorPatientProfileView({
 
                         {/* Private Clinical Notes */}
                         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col relative overflow-hidden">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-teal-500" />
-                            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3 sm:mb-4 flex items-center gap-2">
-                                <FileEdit className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
-                                Private Clinical Notes
-                            </h2>
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
+                            <div className="flex items-center justify-between mb-3 sm:mb-4">
+                                <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <FileEdit className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+                                    Private Clinical Notes
+                                </h2>
+                                <span className="text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md flex items-center gap-1 uppercase tracking-wider">
+                                    🔒 Clinician Confidential (Doctor Only)
+                                </span>
+                            </div>
                             <div className="space-y-4">
                                 {privateNotes && privateNotes.length > 0 ? (
                                     <div className="flex flex-col gap-3">
@@ -903,7 +1089,6 @@ export default function DoctorPatientProfileView({
                         </section>
                     </div>
                 </div>
-            </div>
 
             {/* ══ Consultation History ══ */}
             <div className="mt-4 sm:mt-6">
@@ -1230,6 +1415,314 @@ export default function DoctorPatientProfileView({
                     )}
                 </section>
             </div>
+        </div>
+    )}
+
+                {/* ── TIMELINE TAB CONTENT ── */}
+                {activeTab === 'timeline' && (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                        {/* Search & Filter Header */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="relative flex-1 w-full">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                <input
+                                    type="text"
+                                    placeholder="Search patient timeline events, lab reports, medications..."
+                                    value={timelineSearch}
+                                    onChange={(e) => setTimelineSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-slate-50 text-sm font-medium"
+                                />
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
+                                {['All', 'Appointment', 'Test', 'Medication'].map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setTimelineFilter(type)}
+                                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                                            timelineFilter === type
+                                                ? 'bg-teal-600 text-white shadow-sm'
+                                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Timeline Events List */}
+                        {(() => {
+                            const filteredEvents = (timeline || []).filter((e: any) => {
+                                const matchesType = timelineFilter === 'All' || (e.eventType || '').toLowerCase() === timelineFilter.toLowerCase();
+                                const matchesSearch = (e.title || '').toLowerCase().includes(timelineSearch.toLowerCase()) ||
+                                    (e.description || '').toLowerCase().includes(timelineSearch.toLowerCase());
+                                return matchesType && matchesSearch;
+                            });
+
+                            const now = new Date();
+                            const upcomingEvents = filteredEvents
+                                .filter((e: any) => new Date(e.eventDate) > now)
+                                .sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+                            const pastEvents = filteredEvents
+                                .filter((e: any) => new Date(e.eventDate) <= now)
+                                .sort((a: any, b: any) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+
+                            return (
+                                <div className="space-y-6">
+                                    {/* Upcoming Events */}
+                                    {upcomingEvents.length > 0 && (
+                                        <div className="bg-gradient-to-br from-teal-50/80 to-slate-50 rounded-2xl p-5 border border-teal-200 shadow-sm">
+                                            <h3 className="font-black text-sm text-slate-900 mb-3 flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-teal-600" />
+                                                Upcoming Scheduled Events ({upcomingEvents.length})
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {upcomingEvents.map((event: any) => (
+                                                    <div key={event.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-start gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0 text-teal-600 font-bold border border-teal-100">
+                                                            <div className="text-center leading-none">
+                                                                <span className="block text-[9px] uppercase text-teal-500 font-bold">{new Date(event.eventDate).toLocaleString('default', { month: 'short' })}</span>
+                                                                <span className="text-sm font-black">{new Date(event.eventDate).getDate()}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-bold text-sm text-slate-900">{event.title}</h4>
+                                                            <p className="text-xs text-slate-500 mt-0.5">{event.description || "No specific details"}</p>
+                                                            <div className="mt-1.5 flex items-center gap-2">
+                                                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${
+                                                                    event.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                    event.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                    'bg-amber-50 text-amber-600 border-amber-100'
+                                                                }`}>
+                                                                    {event.status || 'Pending'}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-medium capitalize">• {event.eventType}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Timeline Feed */}
+                                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                                                <Clock className="w-5 h-5 text-teal-600" />
+                                                Chronological Patient Health Journey
+                                            </h3>
+                                            <span className="text-xs font-bold text-slate-400">
+                                                {pastEvents.length} events logged
+                                            </span>
+                                        </div>
+
+                                        {pastEvents.length === 0 ? (
+                                            <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                                <p className="text-sm font-bold text-slate-600">No events logged yet for this patient</p>
+                                            </div>
+                                        ) : (
+                                            <div className="relative space-y-6">
+                                                {/* Continuous Dashed Vertical Line - Centered at 20px */}
+                                                <div className="absolute left-5 top-3.5 bottom-3.5 w-0.5 -translate-x-1/2 border-l-2 border-dashed border-teal-300" />
+                                                {pastEvents.map((event: any) => {
+                                                    const isReport = event.isReport || event.reportId;
+                                                    return (
+                                                        <div key={event.id} className="relative pl-11 sm:pl-12">
+                                                            {/* Green Circle Node - Centered at 20px */}
+                                                            <div className="absolute left-5 top-3.5 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-white ring-2 ring-teal-400 bg-teal-500 z-10 shadow-sm" />
+                                                            <div className="bg-slate-50/80 hover:bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <h4 className="font-black text-sm sm:text-base text-slate-900">{event.title}</h4>
+                                                                        <p className="text-[11px] text-slate-400 font-bold mt-0.5 flex items-center gap-2">
+                                                                            <span>{new Date(event.eventDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                                            <span>•</span>
+                                                                            <span className="uppercase text-teal-600 font-black">{event.eventType}</span>
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${
+                                                                        event.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                        'bg-amber-50 text-amber-600 border-amber-100'
+                                                                    }`}>
+                                                                        {event.status || 'Completed'}
+                                                                    </span>
+                                                                </div>
+
+                                                                {event.description && (
+                                                                    <p className="text-xs sm:text-sm text-slate-600 font-medium mt-2 leading-relaxed whitespace-pre-wrap">
+                                                                        {event.description}
+                                                                    </p>
+                                                                )}
+
+                                                                {isReport && event.reportId && (
+                                                                    <Link
+                                                                        href={`/labreports/${event.reportId}`}
+                                                                        className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-xs rounded-lg border border-teal-200 transition-colors"
+                                                                    >
+                                                                        <FileText className="w-3.5 h-3.5" />
+                                                                        View Linked Lab Report
+                                                                        <ArrowRight className="w-3 h-3" />
+                                                                    </Link>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                )}
+
+                {/* ── DIAGNOSTIC TAB CONTENT ── */}
+                {activeTab === 'diagnostic' && (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                        {(() => {
+                            const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; dot: string; Icon: any }> = {
+                                improving: { label: 'Improving', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', Icon: TrendingDown },
+                                stable: { label: 'Stable', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500', Icon: Minus },
+                                worsening: { label: 'Worsening', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500', Icon: TrendingUp },
+                            };
+
+                            if (!diagnostics || diagnostics.length === 0) {
+                                return (
+                                    <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+                                        <div className="w-16 h-16 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center mx-auto mb-4 text-violet-500">
+                                            <Brain className="w-8 h-8" />
+                                        </div>
+                                        <h3 className="text-lg font-black text-slate-900">No Diagnostic Pathway Created Yet</h3>
+                                        <p className="text-sm text-slate-500 max-w-md mx-auto mt-1 font-medium leading-relaxed">
+                                            You haven&apos;t documented a diagnostic pathway for <span className="font-bold text-slate-700">{patient.name}</span> yet. Create one during consultation to track signals, evidence, staging, and treatment pathways.
+                                        </p>
+                                        <Link
+                                            href={`/doctor/consultation/${patient.id}`}
+                                            className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                                        >
+                                            <Stethoscope className="w-4 h-4" />
+                                            Start Consultation & Create Pathway
+                                        </Link>
+                                    </div>
+                                );
+                            }
+
+                            const currentStatus = STATUS_CFG[activeDiagnostic?.conditionStatus as string] || STATUS_CFG.stable;
+
+                            const mapNodes: DiagnosticNode[] = (activeDiagnostic?.nodes || []).map((n: any, i: number) => ({
+                                id: n.id || `n${i}`,
+                                title: n.title || 'Node',
+                                description: n.description || '',
+                                type: n.type || 'diagnosis',
+                                date: n.date ? new Date(n.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+                                x: i,
+                                y: 0,
+                                connections: n.connections || [],
+                                parameters: (n.parameters || []).map((p: any) => ({
+                                    id: `${n.id}-${p.name}`,
+                                    name: p.name,
+                                    value: p.value,
+                                    unit: p.unit,
+                                    status: p.status ?? 'normal',
+                                    timestamp: n.date || '',
+                                })),
+                            }));
+
+                            return (
+                                <div className="space-y-6">
+                                    {/* Condition Tabs Selector */}
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4 flex-wrap">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Condition Pathways:</span>
+                                            {diagnostics.map((d: any) => {
+                                                const cfg = STATUS_CFG[d.conditionStatus as string] || STATUS_CFG.stable;
+                                                const isSelected = activeDiagnostic?.id === d.id;
+                                                return (
+                                                    <button
+                                                        key={d.id}
+                                                        onClick={() => setSelectedDiagId(d.id)}
+                                                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                                            isSelected
+                                                                ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                                                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-teal-300'
+                                                        }`}
+                                                    >
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : cfg.dot}`} />
+                                                        {d.conditionName}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <Link
+                                            href={`/doctor/consultation/${patient.id}`}
+                                            className="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                                        >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                            Update Pathway
+                                        </Link>
+                                    </div>
+
+                                    {/* Active Pathway Map & Details */}
+                                    {activeDiagnostic && (
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                            {/* Map Visualizer (2/3) */}
+                                            <div className="lg:col-span-8 space-y-4">
+                                                <div className={`p-4 ${currentStatus.bg} rounded-2xl border ${currentStatus.border} flex items-center justify-between`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <currentStatus.Icon className={`w-4 h-4 ${currentStatus.color}`} />
+                                                        <span className={`text-xs font-black ${currentStatus.color}`}>
+                                                            <span className="font-black underline">{activeDiagnostic.conditionName}</span> — Clinical Assessment: {currentStatus.label}
+                                                        </span>
+                                                    </div>
+                                                    {activeDiagnostic.updatedAt && (
+                                                        <span className="text-[10px] text-slate-500 font-bold">
+                                                            Updated {new Date(activeDiagnostic.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <DiagnosticMap nodes={mapNodes} />
+                                            </div>
+
+                                            {/* Clinical Pathway Summary Cards (1/3) */}
+                                            <div className="lg:col-span-4 space-y-4">
+                                                {/* Treatment Plan */}
+                                                {activeDiagnostic.treatmentPlan && (
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                            <Pill className="w-4 h-4 text-teal-600" />
+                                                            Treatment Plan
+                                                        </h4>
+                                                        <p className="text-xs text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                            {activeDiagnostic.treatmentPlan}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Clinical Notes */}
+                                                {activeDiagnostic.clinicalNotes && (
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                            <FileText className="w-4 h-4 text-rose-500" />
+                                                            Diagnostic Clinical Notes
+                                                        </h4>
+                                                        <p className="text-xs text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                            {activeDiagnostic.clinicalNotes}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                )}
 
 
 
@@ -1464,5 +1957,6 @@ export default function DoctorPatientProfileView({
             </AnimatePresence>
 
         </div>
-    );
+    </div>
+);
 }

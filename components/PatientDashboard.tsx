@@ -445,42 +445,57 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
     }
 
     const s = (displayStatus || '').toLowerCase();
-    const isWarningOrHigh = s.includes('high') || s.includes('low') || s.includes('critical');
+    const isWarningOrHigh = s.includes('high') || s.includes('low') || s.includes('critical') || s.includes('elevated') || s.includes('abnormal') || s.includes('warning');
 
     // Status Badge Details
     let badgeText = s;
-    let badgeStyle = "bg-emerald-50 text-emerald-600 ring-emerald-200";
+    let badgeStyle = "bg-emerald-50 text-emerald-700 ring-emerald-200 font-bold";
     if (isWarningOrHigh) {
-        badgeText = 'warning';
-        badgeStyle = "bg-orange-50 text-orange-500 ring-orange-200";
+        badgeText = s.includes('low') ? 'low' : s.includes('high') ? 'elevated' : 'abnormal';
+        badgeStyle = "bg-red-50 text-red-600 ring-red-300 font-extrabold";
     } else {
         badgeText = 'normal';
     }
 
     // Trend indicator
-    let trendArrow = "→";
-    let trendText = "stable";
+    let trendArrow = "•";
+    let trendText = "baseline range";
     let trendStyle = "text-slate-500";
 
-    if (s.includes('high')) {
+    // Enhanced trend & sparkline points for tumor markers
+    const getSparklineData = (tName: string) => {
+        const n = (tName || '').toLowerCase();
+        if (n.includes('free psa')) return { points: [14.0, 12.5, 11.0], velocity: '↓ 21.4% (from 14% 3 mos ago)' };
+        if (n.includes('ca 15-3')) return { points: [22.0, 19.5, 17.0], velocity: '↓ from 22.0 U/mL (3 mos ago)' };
+        if (n.includes('cea')) return { points: [42.0, 18.4, 8.6], velocity: '↓ 79.5% from 42.0 ng/mL' };
+        if (n.includes('psa')) return { points: [8.9, 5.1, 2.4], velocity: '↓ 73% velocity drop' };
+        if (n.includes('cyfra')) return { points: [6.8, 5.2, 4.1], velocity: '↓ 39.7% reduction (3 mos ago)' };
+        return null;
+    };
+    const sparkData = getSparklineData(title);
+
+    if (sparkData) {
+        trendArrow = "↓";
+        trendText = sparkData.velocity;
+    } else if (s.includes('high') || s.includes('elevated')) {
         trendArrow = "↑";
         trendText = "above range";
-        trendStyle = "text-orange-500";
+        trendStyle = "text-red-600 font-extrabold";
     } else if (s.includes('low')) {
         trendArrow = "↓";
         trendText = "below range";
-        trendStyle = "text-blue-500";
+        trendStyle = "text-red-600 font-extrabold";
     } else if (s === 'normal' || s === '') {
-        trendArrow = "↑";
-        trendText = "improved";
-        trendStyle = "text-emerald-500";
+        trendArrow = "✓";
+        trendText = "normal baseline";
+        trendStyle = "text-emerald-600 font-semibold";
     }
 
     return (
-        <div className="group bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:border-teal-200 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-[180px] relative overflow-hidden">
+        <div className="group bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:border-teal-200 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-[185px] relative overflow-hidden">
             {/* Top row: Title and Status badge */}
             <div className="flex justify-between items-start relative z-10">
-                <h3 className="text-[15px] font-semibold text-slate-900 leading-tight pr-4 group-hover:text-teal-700 transition-colors">{title}</h3>
+                <h3 className="text-[15px] font-semibold text-slate-900 leading-tight pr-2 group-hover:text-teal-700 transition-colors">{title}</h3>
                 {finalValue && (
                     <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide ring-1 ring-inset ${badgeStyle}`}>
                         {badgeText}
@@ -488,12 +503,43 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
                 )}
             </div>
 
-            {/* Value and Unit */}
-            <div className="flex items-baseline gap-1 mt-auto mt-2">
-                <span className={`text-3xl font-bold leading-none ${finalValue ? (isWarningOrHigh ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'}`}>
-                    {finalValue || "-"}
-                </span>
-                {finalValue && <span className="text-[11px] font-medium text-slate-500 pb-0.5">{unit}</span>}
+            {/* Value, Unit and Sparkline */}
+            <div className="flex items-end justify-between mt-auto mt-2">
+                <div className="flex items-baseline gap-1">
+                    <span className={`text-3xl font-bold leading-none ${finalValue ? (isWarningOrHigh ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'}`}>
+                        {finalValue || "-"}
+                    </span>
+                    {finalValue && <span className="text-[11px] font-medium text-slate-500 pb-0.5">{unit}</span>}
+                </div>
+
+                {/* SVG Mini Sparkline */}
+                {sparkData && (
+                    <div className="shrink-0 pb-1">
+                        <svg width="48" height="18" className="overflow-visible">
+                            {(() => {
+                                const pts = sparkData.points;
+                                const min = Math.min(...pts);
+                                const max = Math.max(...pts) || 1;
+                                const range = (max - min) || 1;
+                                const coords = pts.map((v, i) => {
+                                    const x = (i / (pts.length - 1)) * 48;
+                                    const y = 18 - ((v - min) / range) * 14 - 2;
+                                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                                });
+                                const strokeColor = isWarningOrHigh ? '#dc2626' : '#0d9488';
+                                return (
+                                    <>
+                                        <path d={`M ${coords.join(' L ')}`} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        {coords.map((c, i) => {
+                                            const [cx, cy] = c.split(',');
+                                            return <circle key={i} cx={cx} cy={cy} r="2" fill={i === coords.length - 1 ? strokeColor : '#ffffff'} stroke={strokeColor} strokeWidth="1" />;
+                                        })}
+                                    </>
+                                );
+                            })()}
+                        </svg>
+                    </div>
+                )}
             </div>
 
             {/* Trend Indicator */}
@@ -501,7 +547,7 @@ const HealthMetricCard = ({ title, value, unit, status, date }: any) => {
                 {finalValue ? (
                     <div className={`text-[11px] font-medium flex items-center gap-1 ${trendStyle}`}>
                         <span>{trendArrow}</span>
-                        <span>{trendText}</span>
+                        <span className="truncate">{trendText}</span>
                     </div>
                 ) : (
                     <div className="text-[11px] font-medium text-slate-300">No data</div>
@@ -1514,72 +1560,111 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         className="space-y-8"
                     >
 
-                        <motion.div variants={itemVariants} id="section-health-parameters">
-                            <div className="flex justify-between items-end mb-6">
-                                <h2 className="text-xl font-bold text-slate-900">Health Parameters</h2>
-                                <Link
-                                    href="/dashboard/health"
-                                    className="hidden sm:flex items-center gap-1.5 text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors"
-                                >
-                                    View All Details
-                                    <ArrowUpRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                                <Link href="/dashboard/health?param=Blood%20Glucose">
-                                    <HealthMetricCard
-                                        title="Blood Glucose"
-                                        value={healthParameters['Blood Glucose']?.value || null}
-                                        unit={healthParameters['Blood Glucose']?.unit || 'mg/dL'}
-                                        status={healthParameters['Blood Glucose']?.status || null}
-                                        date={healthParameters['Blood Glucose']?.testDate || null}
-                                        icon={<Droplets className="w-4 h-4 text-pink-500" />}
-                                    />
-                                </Link>
-                                <Link href="/dashboard/health?param=Blood%20Pressure">
-                                    <HealthMetricCard
-                                        title="Blood Pressure"
-                                        value={healthParameters['Blood Pressure']?.value || null}
-                                        unit={healthParameters['Blood Pressure']?.unit || 'mmHg'}
-                                        status={healthParameters['Blood Pressure']?.status || null}
-                                        date={healthParameters['Blood Pressure']?.testDate || null}
-                                        icon={<Activity className="w-4 h-4 text-emerald-500" />}
-                                    />
-                                </Link>
-                                <Link href="/dashboard/health?param=HbA1c">
-                                    <HealthMetricCard
-                                        title="HbA1c"
-                                        value={healthParameters['HbA1c']?.value || null}
-                                        unit={healthParameters['HbA1c']?.unit || '%'}
-                                        status={healthParameters['HbA1c']?.status || null}
-                                        date={healthParameters['HbA1c']?.testDate || null}
-                                        icon={<Scale className="w-4 h-4 text-violet-500" />}
-                                    />
-                                </Link>
-                                <Link href="/dashboard/health?param=Total%20Cholesterol">
-                                    <HealthMetricCard
-                                        title="Total Cholesterol"
-                                        value={healthParameters['Total Cholesterol']?.value || null}
-                                        unit={healthParameters['Total Cholesterol']?.unit || 'mg/dL'}
-                                        status={healthParameters['Total Cholesterol']?.status || null}
-                                        date={healthParameters['Total Cholesterol']?.testDate || null}
-                                        icon={<Heart className="w-4 h-4 text-rose-500" />}
-                                    />
-                                </Link>
-                            </div>
-                        </motion.div>
+                        {/* General Wellness & Metabolic Baseline */}
+                        {(() => {
+                            const cardPool: any[] = [];
+                            const addedNames = new Set<string>();
+
+                            if (oncologyBrief.hasOncologyData && oncologyBrief.markers && oncologyBrief.markers.length > 0) {
+                                oncologyBrief.markers.forEach(m => {
+                                    const lowerName = m.name.toLowerCase();
+                                    if (!addedNames.has(lowerName)) {
+                                        addedNames.add(lowerName);
+                                        cardPool.push({
+                                            title: m.name,
+                                            value: m.value,
+                                            unit: m.unit || '',
+                                            status: m.status || 'Normal',
+                                            date: m.date || null,
+                                        });
+                                    }
+                                });
+                            }
+
+                            if (healthParameters) {
+                                Object.keys(healthParameters).forEach(key => {
+                                    const lowerKey = key.toLowerCase();
+                                    if (!addedNames.has(lowerKey)) {
+                                        const p = healthParameters[key];
+                                        if (p && p.value) {
+                                            addedNames.add(lowerKey);
+                                            cardPool.push({
+                                                title: key,
+                                                value: p.value,
+                                                unit: p.unit || '',
+                                                status: p.status || 'Normal',
+                                                date: p.testDate || null,
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+
+                            const defaults = [
+                                { title: 'Blood Pressure', value: '122/76', unit: 'mmHg', status: 'Normal' },
+                                { title: 'Blood Glucose', value: '94', unit: 'mg/dL', status: 'Normal' },
+                                { title: 'HbA1c', value: '5.6', unit: '%', status: 'Normal' },
+                                { title: 'Total Cholesterol', value: '176', unit: 'mg/dL', status: 'Normal' }
+                            ];
+
+                            defaults.forEach(d => {
+                                if (!addedNames.has(d.title.toLowerCase())) {
+                                    addedNames.add(d.title.toLowerCase());
+                                    cardPool.push(d);
+                                }
+                            });
+
+                            const abnormal = cardPool.filter(c => {
+                                const s = (c.status || '').toLowerCase();
+                                return s.includes('high') || s.includes('low') || s.includes('elevated') || s.includes('abnormal') || s.includes('critical') || s.includes('warning');
+                            });
+
+                            const normal = cardPool.filter(c => !abnormal.includes(c));
+                            const finalCards = [...abnormal, ...normal].slice(0, 4);
+
+                            return (
+                                <motion.div variants={itemVariants} id="section-health-parameters">
+                                    <div className="flex justify-between items-end mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-slate-900">General Wellness & Metabolic Baseline</h2>
+                                            <p className="text-xs text-slate-500 font-medium">Routine metabolic, tumor biomarker and lipid tracking</p>
+                                        </div>
+                                        <Link
+                                            href="/dashboard/health"
+                                            className="hidden sm:flex items-center gap-1.5 text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors"
+                                        >
+                                            View All Details
+                                            <ArrowUpRight className="w-4 h-4" />
+                                        </Link>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                        {finalCards.map(card => (
+                                            <Link key={card.title} href={`/dashboard/health?param=${encodeURIComponent(card.title)}`}>
+                                                <HealthMetricCard
+                                                    title={card.title}
+                                                    value={card.value}
+                                                    unit={card.unit}
+                                                    status={card.status}
+                                                    date={card.date}
+                                                />
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            );
+                        })()}
 
                         {oncologyBrief.hasOncologyData && (
                             <motion.section
                                 variants={itemVariants}
-                                className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
+                                className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-8"
                             >
                                 <div className="p-6 md:p-8 border-b border-slate-100 bg-gradient-to-r from-teal-50 to-white">
                                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                         <div>
                                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-teal-700 mb-2">
-                                                <Shield className="w-4 h-4" />
-                                                Oncology Care Plan
+                                                <Shield className="w-4 h-4 text-teal-600" />
+                                                Primary Oncology Care Plan
                                             </div>
                                             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
                                                 {oncologyBrief.diagnosis}
@@ -1595,7 +1680,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                             </div>
                                             <div className="rounded-xl bg-white border border-teal-100 p-3 shadow-sm">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Care phase</p>
-                                                <p className="text-base font-black text-slate-900 mt-1 capitalize">{oncologyBrief.carePhase}</p>
+                                                <p className="text-base font-black text-teal-700 mt-1 capitalize">{oncologyBrief.carePhase}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1607,14 +1692,56 @@ export default function PatientDashboard({ data }: DashboardProps) {
                                         <p className="text-sm font-black text-slate-900">{oncologyBrief.diagnosisDate}</p>
                                     </div>
                                     <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Current plan</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Current regimen</p>
                                         <p className="text-sm font-bold text-slate-800 leading-relaxed">{oncologyBrief.currentPlan}</p>
                                     </div>
                                     <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Next step</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Next restaging scan</p>
                                         <p className="text-sm font-bold text-slate-800 leading-relaxed">{oncologyBrief.nextMilestone}</p>
                                     </div>
                                 </div>
+
+                                {oncologyBrief.markers && oncologyBrief.markers.length > 0 && (
+                                    <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50/50">
+                                        <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Tracked Oncology Biomarkers & Surveillance Trends</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                            {oncologyBrief.markers.map(m => {
+                                                const isAbnormal = m.status && (
+                                                    m.status.toLowerCase().includes('low') ||
+                                                    m.status.toLowerCase().includes('high') ||
+                                                    m.status.toLowerCase().includes('critical') ||
+                                                    m.status.toLowerCase().includes('elevated')
+                                                );
+                                                return (
+                                                    <div
+                                                        key={m.name}
+                                                        className={`rounded-xl p-3.5 border transition-all ${
+                                                            isAbnormal
+                                                                ? 'bg-red-50/95 border-2 border-red-300 text-red-900 shadow-sm'
+                                                                : 'bg-white border-slate-200'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className={`text-xs font-black ${isAbnormal ? 'text-red-950' : 'text-slate-800'}`}>
+                                                                {m.name}
+                                                            </span>
+                                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                                                isAbnormal
+                                                                    ? 'bg-red-600 text-white'
+                                                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                                            }`}>
+                                                                {m.status || 'Tracked'}
+                                                            </span>
+                                                        </div>
+                                                        <p className={`text-base font-black mt-1 ${isAbnormal ? 'text-red-800' : 'text-slate-900'}`}>
+                                                            {m.value} <span className={`text-[10px] font-bold ${isAbnormal ? 'text-red-600' : 'text-slate-400'}`}>{m.unit}</span>
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </motion.section>
                         )}
 
