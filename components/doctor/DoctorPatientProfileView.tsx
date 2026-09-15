@@ -17,6 +17,9 @@ import { stopMedication, restartMedication, hideMedication, updateMedication } f
 import CheckinHistorySection from "@/components/checkin/CheckinHistorySection";
 import { buildOncologyBrief } from "@/lib/oncologyDemo";
 import { DiagnosticMap, DiagnosticNode } from '@/components/DiagnosticMap';
+import AIEarlyDetectionCard from '@/components/AIEarlyDetectionCard';
+import { analyzePatientEarlyDetection } from '@/lib/aiEarlyDetection';
+
 
 const FREQUENCIES = [
     { label: 'Once a day', multiplier: 1 },
@@ -390,7 +393,27 @@ export default function DoctorPatientProfileView({
                     </div>
                 </div>
 
+                {/* ── AI Universal Early Screening Alert ── */}
+                {(() => {
+                    const earlyDetectionResult = analyzePatientEarlyDetection({
+                        chronicConditions: patient?.chronicConditions,
+                        lifestyle: patient?.lifestyle,
+                        healthParameters: healthParams || [],
+                        labReports: reports || [],
+                        vitals: staffVitals || []
+                    });
+
+                    return (
+                        <AIEarlyDetectionCard
+                            data={earlyDetectionResult}
+                            patientName={patient?.name || "Patient"}
+                            isDoctorView={true}
+                        />
+                    );
+                })()}
+
                 {/* ── Sub-Navigation Tabs (Compact Sleek Segmented Control) ── */}
+
                 <div className="flex justify-center my-1 sm:my-2">
                     <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-center gap-1 sm:gap-2 max-w-full overflow-x-auto no-scrollbar">
                         <button

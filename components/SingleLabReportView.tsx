@@ -195,10 +195,53 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                         <h2 className="text-lg font-black text-slate-900 mb-4">Extracted Parameters</h2>
                         {(() => {
                             const rawData = report.extractedData;
-                            const results: TestResult[] = Array.isArray(rawData) ? rawData : (rawData?.results || []);
+                            const rawResults: any[] = Array.isArray(rawData) ? rawData : (rawData?.results || []);
 
-                            if (results.length > 0) {
-                                return results.map((cat, idx) => (
+                            // Normalize into category buckets safely
+                            const categories: { category: string; tests: any[] }[] = [];
+
+                            if (rawResults.length > 0) {
+                                const isCategorized = rawResults.some(r => Array.isArray(r?.tests));
+                                if (isCategorized) {
+                                    rawResults.forEach(r => {
+                                        if (Array.isArray(r?.tests)) {
+                                            categories.push({
+                                                category: r.category || 'General Parameters',
+                                                tests: r.tests
+                                            });
+                                        } else if (r?.name || r?.parameterName || r?.testName) {
+                                            const testObj = {
+                                                name: r.name || r.parameterName || r.testName || 'Parameter',
+                                                value: r.value || '--',
+                                                unit: r.unit || '',
+                                                referenceRange: r.referenceRange || r.reference || '',
+                                                status: r.status || 'normal'
+                                            };
+                                            let genCat = categories.find(c => c.category === 'General Parameters');
+                                            if (!genCat) {
+                                                genCat = { category: 'General Parameters', tests: [] };
+                                                categories.push(genCat);
+                                            }
+                                            genCat.tests.push(testObj);
+                                        }
+                                    });
+                                } else {
+                                    const flatTests = rawResults.map(r => ({
+                                        name: r.name || r.parameterName || r.testName || 'Parameter',
+                                        value: r.value || '--',
+                                        unit: r.unit || '',
+                                        referenceRange: r.referenceRange || r.reference || '',
+                                        status: r.status || 'normal'
+                                    }));
+                                    categories.push({
+                                        category: 'Laboratory Test Parameters',
+                                        tests: flatTests
+                                    });
+                                }
+                            }
+
+                            if (categories.length > 0) {
+                                return categories.map((cat, idx) => (
                                     <div key={idx} className="mb-6 last:mb-0">
                                         <h3 className="text-sm font-bold text-teal-800 bg-teal-50 px-3 py-2 rounded-lg mb-3">
                                             {cat.category}
@@ -215,7 +258,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {cat.tests.map((test, tidx) => (
+                                                    {(cat.tests || []).map((test, tidx) => (
                                                         <tr key={tidx} className="border-b border-slate-100 hover:bg-slate-50">
                                                             <td className="py-2.5 px-3 font-semibold text-slate-900">{test.name}</td>
                                                             <td className="py-2.5 px-3 font-bold text-teal-600">{test.value}</td>
@@ -249,6 +292,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                 );
                             }
                         })()}
+
                     </div>
                 </motion.div>
             </main>

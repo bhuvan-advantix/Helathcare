@@ -39,12 +39,14 @@ export async function GET(req: NextRequest) {
                 and(
                     eq(users.role, 'patient'),
                     or(
-                        like(users.customId, `%${query}`), // Matches end of customId
-                        like(users.name, `%${query}%`) // Also search by name
+                        ilike(users.customId, `%${query}%`),  // matches anywhere in ID
+                        ilike(users.name, `%${query}%`),       // case-insensitive name search
+                        ilike(users.email, `%${query}%`),      // also allow email search
                     )
                 )
             )
-            .limit(10);
+            .limit(15);
+
 
         const matchingPatients = rawPatients.map(p => {
             let age = p.age;

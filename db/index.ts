@@ -2,12 +2,18 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
+const rawUrl = process.env.TURSO_DATABASE_URL || "";
+const dbUrl = rawUrl.startsWith("libsql://")
+    ? rawUrl.replace(/^libsql:\/\//, "https://")
+    : rawUrl;
+
 const client = createClient({
-    url: process.env.TURSO_DATABASE_URL!,
+    url: dbUrl,
     authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
 export const db = drizzle(client, { schema });
+
 
 let labReportsSchemaEnsured = false;
 

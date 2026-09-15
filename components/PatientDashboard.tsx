@@ -56,6 +56,9 @@ import DashboardNavbar from '@/components/DashboardNavbar';
 import LabReports from '@/components/LabReports';
 import Footer from '@/components/Footer';
 import { buildOncologyBrief } from '@/lib/oncologyDemo';
+import AIEarlyDetectionCard from '@/components/AIEarlyDetectionCard';
+import { analyzePatientEarlyDetection } from '@/lib/aiEarlyDetection';
+
 // --- Dashboard Components ---
 
 interface HealthCardProps {
@@ -1528,6 +1531,24 @@ export default function PatientDashboard({ data }: DashboardProps) {
         diagnostics: diagnosticConditions,
     });
 
+    const earlyDetectionResult = React.useMemo(() => {
+        const paramsList = Object.entries(healthParameters || {}).map(([name, data]: any) => ({
+            parameterName: name,
+            value: typeof data === 'object' ? data?.value : String(data),
+            unit: data?.unit || '',
+            status: data?.status || '',
+            testDate: data?.testDate || ''
+        }));
+
+        return analyzePatientEarlyDetection({
+            chronicConditions: patient?.chronicConditions,
+            lifestyle: patient?.lifestyle,
+            healthParameters: paramsList,
+            labReports: labReportsData,
+            vitals: []
+        });
+    }, [patient, healthParameters, labReportsData]);
+
     return (
         <div className="min-h-screen bg-[#F7F9FA] flex flex-col">
             <DashboardNavbar user={user} />
@@ -1559,8 +1580,13 @@ export default function PatientDashboard({ data }: DashboardProps) {
                         animate={!showWelcome ? "visible" : "hidden"}
                         className="space-y-8"
                     >
+                        {/* AI Universal Early Detection Card */}
+                        <motion.div variants={itemVariants}>
+                            <AIEarlyDetectionCard data={earlyDetectionResult} patientName={user?.name || "Patient"} />
+                        </motion.div>
 
                         {/* General Wellness & Metabolic Baseline */}
+
                         {(() => {
                             const cardPool: any[] = [];
                             const addedNames = new Set<string>();
