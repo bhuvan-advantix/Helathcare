@@ -161,3 +161,35 @@ export async function ensureCheckinsSchema() {
 
     checkinsSchemaEnsured = true;
 }
+
+// ── Diabetes Records schema guard ───────────────────────────────────────────
+let diabetesSchemaEnsured = false;
+
+export async function ensureDiabetesSchema() {
+    if (diabetesSchemaEnsured) return;
+
+    const tableInfo = await client.execute("PRAGMA table_info('diabetes_records')");
+    if (tableInfo.rows.length === 0) {
+        await client.execute(`
+            CREATE TABLE IF NOT EXISTS diabetes_records (
+                id TEXT PRIMARY KEY NOT NULL,
+                patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                doctor_id TEXT REFERENCES doctors(id) ON DELETE SET NULL,
+                hba1c TEXT NOT NULL,
+                fasting_glucose TEXT,
+                post_prandial_glucose TEXT,
+                insulin_dosage TEXT,
+                glycemic_variability TEXT,
+                retinopathy_status TEXT DEFAULT 'Clear',
+                nephropathy_status TEXT DEFAULT 'Normal',
+                neuropathy_status TEXT DEFAULT 'None',
+                notes TEXT,
+                test_date TEXT NOT NULL,
+                recorded_at INTEGER
+            )
+        `);
+    }
+
+    diabetesSchemaEnsured = true;
+}
+

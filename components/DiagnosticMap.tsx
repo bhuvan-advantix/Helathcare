@@ -1,25 +1,18 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
-    Activity,
-    Calendar,
-    CheckCircle2,
-    FileText,
-    Info,
-    Microscope,
-    Shield,
-    Stethoscope,
-    Syringe,
-    TestTube,
-    AlertCircle,
-    ZoomIn,
-    ZoomOut,
-    RotateCcw,
-    Move,
-    MousePointerClick
+    useCallback, useEffect, useLayoutEffect,
+    useMemo, useRef, useState,
+} from 'react';
+import {
+    Activity, AlertCircle, AlertTriangle, Calendar,
+    CheckCircle2, ChevronRight, Crosshair, FileText,
+    Info, Maximize2, Microscope, Move, RotateCcw,
+    Shield, Stethoscope, Syringe, TestTube,
+    ZoomIn, ZoomOut,
 } from 'lucide-react';
+
+// ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface DiagnosticNodeParameter {
     id: string;
@@ -30,14 +23,12 @@ export interface DiagnosticNodeParameter {
     timestamp?: string;
 }
 
-type NodeType = 'screening' | 'symptom' | 'pathology' | 'surgery' | 'therapy' | 'surveillance' | 'diagnosis';
-
 export interface DiagnosticNode {
     id: string;
     title: string;
     description?: string;
     rationale?: string;
-    type?: NodeType;
+    type?: string;
     date?: string;
     outcome?: string;
     x?: number;
@@ -46,452 +37,847 @@ export interface DiagnosticNode {
     parameters?: DiagnosticNodeParameter[];
 }
 
-interface DiagnosticMapProps {
-    nodes: DiagnosticNode[];
-}
+// ─── Type config ──────────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<NodeType, {
+const TYPE_CONFIG: Record<string, {
     label: string;
-    short: string;
-    border: string;
     bg: string;
-    text: string;
-    soft: string;
-    dotColor: string;
+    accent: string;
+    headerBg: string;
+    iconBg: string;
     Icon: typeof Activity;
 }> = {
-    screening: {
-        label: 'Screening and imaging evidence',
-        short: 'Screening',
-        border: 'border-emerald-300',
-        bg: 'bg-emerald-600',
-        text: 'text-emerald-700',
-        soft: 'bg-emerald-50',
-        dotColor: '#059669',
-        Icon: Stethoscope,
-    },
-    symptom: {
-        label: 'Symptoms and clinical signals',
-        short: 'Signals',
-        border: 'border-sky-300',
-        bg: 'bg-sky-600',
-        text: 'text-sky-700',
-        soft: 'bg-sky-50',
-        dotColor: '#0284c7',
-        Icon: AlertCircle,
-    },
-    pathology: {
-        label: 'Biopsy and pathology confirmation',
-        short: 'Pathology',
-        border: 'border-violet-300',
-        bg: 'bg-violet-600',
-        text: 'text-violet-700',
-        soft: 'bg-violet-50',
-        dotColor: '#7c3aed',
-        Icon: Microscope,
-    },
-    surgery: {
-        label: 'Procedure or surgery',
-        short: 'Procedure',
-        border: 'border-rose-300',
-        bg: 'bg-rose-600',
-        text: 'text-rose-700',
-        soft: 'bg-rose-50',
-        dotColor: '#e11d48',
-        Icon: Syringe,
-    },
-    therapy: {
-        label: 'Treatment action',
-        short: 'Treatment',
-        border: 'border-amber-300',
-        bg: 'bg-amber-500',
-        text: 'text-amber-800',
-        soft: 'bg-amber-50',
-        dotColor: '#f59e0b',
-        Icon: TestTube,
-    },
-    surveillance: {
-        label: 'Monitoring and follow-up',
-        short: 'Follow-up',
-        border: 'border-cyan-300',
-        bg: 'bg-cyan-600',
-        text: 'text-cyan-700',
-        soft: 'bg-cyan-50',
-        dotColor: '#0891b2',
-        Icon: Shield,
-    },
-    diagnosis: {
-        label: 'Clinical decision',
-        short: 'Decision',
-        border: 'border-teal-300',
-        bg: 'bg-teal-600',
-        text: 'text-teal-700',
-        soft: 'bg-teal-50',
-        dotColor: '#0d9488',
-        Icon: Activity,
-    },
+    screening:    { label: 'Screening',        bg: '#f0fdfa', accent: '#0d9488', headerBg: 'linear-gradient(135deg, #0d9488, #0f766e)', iconBg: 'rgba(255,255,255,0.22)', Icon: Stethoscope },
+    symptom:      { label: 'Clinical Signal',  bg: '#eff6ff', accent: '#2563eb', headerBg: 'linear-gradient(135deg, #2563eb, #1d4ed8)', iconBg: 'rgba(255,255,255,0.22)', Icon: AlertCircle },
+    pathology:    { label: 'Pathology',        bg: '#faf5ff', accent: '#7c3aed', headerBg: 'linear-gradient(135deg, #7c3aed, #6d28d9)', iconBg: 'rgba(255,255,255,0.22)', Icon: Microscope },
+    surgery:      { label: 'Procedure',        bg: '#fff1f2', accent: '#e11d48', headerBg: 'linear-gradient(135deg, #e11d48, #be123c)', iconBg: 'rgba(255,255,255,0.22)', Icon: Syringe },
+    therapy:      { label: 'Treatment',        bg: '#fffbeb', accent: '#d97706', headerBg: 'linear-gradient(135deg, #d97706, #b45309)', iconBg: 'rgba(255,255,255,0.22)', Icon: TestTube },
+    surveillance: { label: 'Surveillance',     bg: '#ecfeff', accent: '#0891b2', headerBg: 'linear-gradient(135deg, #0891b2, #0e7490)', iconBg: 'rgba(255,255,255,0.22)', Icon: Shield },
+    diagnosis:    { label: 'Clinical Decision',bg: '#f0fdfa', accent: '#0d9488', headerBg: 'linear-gradient(135deg, #0d9488, #0f766e)', iconBg: 'rgba(255,255,255,0.22)', Icon: Activity },
+    profile:      { label: 'Patient Profile',  bg: '#f8fafc', accent: '#475569', headerBg: 'linear-gradient(135deg, #475569, #334155)', iconBg: 'rgba(255,255,255,0.22)', Icon: Activity },
+    followup:     { label: 'Follow-up',        bg: '#ecfeff', accent: '#0891b2', headerBg: 'linear-gradient(135deg, #0891b2, #0e7490)', iconBg: 'rgba(255,255,255,0.22)', Icon: Shield },
+    baseline:     { label: 'Baseline',         bg: '#f0fdfa', accent: '#059669', headerBg: 'linear-gradient(135deg, #059669, #047857)', iconBg: 'rgba(255,255,255,0.22)', Icon: Activity },
 };
 
-const STAGE_CONFIG = {
-    'Stage I': 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    'Stage II': 'bg-sky-50 text-sky-800 border-sky-200',
-    'Stage III': 'bg-amber-50 text-amber-900 border-amber-200',
-    'Stage IV': 'bg-rose-50 text-rose-800 border-rose-200',
-};
+const getCfg = (t?: string) => TYPE_CONFIG[t ?? ''] ?? TYPE_CONFIG.diagnosis;
 
-function stageFrom(nodes: DiagnosticNode[]) {
-    return nodes
-        .flatMap(node => node.parameters || [])
-        .find(param => param.name.toLowerCase() === 'stage')?.value?.toString() || 'Stage III';
+// ─── Layout constants ─────────────────────────────────────────────────────────
+
+const CANVAS_W = 780;
+const NODE_W   = 210;
+
+// Column x-positions for 3-column alternating layout
+const COL_L = 30;
+const COL_C = CANVAS_W / 2 - NODE_W / 2;
+const COL_R = CANVAS_W - NODE_W - 30;
+const V_GAP = 56; // vertical gap between nodes
+
+function colX(i: number): number {
+    // Flow: centre → left → right → centre → left → right
+    return [COL_C, COL_L, COL_R][i % 3];
 }
 
-function tnmFrom(nodes: DiagnosticNode[]) {
-    return nodes
-        .flatMap(node => node.parameters || [])
-        .find(param => param.name.toLowerCase() === 'tnm')?.value?.toString() || 'cT2aN2M0';
+// ─── Status chip ──────────────────────────────────────────────────────────────
+
+function chipStyle(s?: string): { bg: string; text: string; bdr: string } {
+    if (s === 'critical') return { bg: '#fef2f2', text: '#b91c1c', bdr: '#fecaca' };
+    if (s === 'high')     return { bg: '#fff7ed', text: '#c2410c', bdr: '#fed7aa' };
+    if (s === 'low')      return { bg: '#fffbeb', text: '#92400e', bdr: '#fde68a' };
+    return                       { bg: '#f0fdf4', text: '#166534', bdr: '#bbf7d0' };
 }
 
-function statusClass(status?: string) {
-    if (status === 'critical') return 'text-red-700 bg-red-50 border-red-200';
-    if (status === 'high') return 'text-rose-700 bg-rose-50 border-rose-200';
-    if (status === 'low') return 'text-amber-800 bg-amber-50 border-amber-200';
-    return 'text-slate-700 bg-slate-50 border-slate-200';
+// ─── Bezier path ──────────────────────────────────────────────────────────────
+
+function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
+    const cy = (y1 + y2) / 2;
+    // Offset control points horizontally if x differ greatly for a nice S-curve
+    const cx1 = x1, cx2 = x2;
+    return `M${x1},${y1} C${cx1},${cy} ${cx2},${cy} ${x2},${y2}`;
 }
 
-export function DiagnosticMap({ nodes }: DiagnosticMapProps) {
-    const [zoom, setZoom] = useState(1);
+// ─── Node Card ────────────────────────────────────────────────────────────────
 
-    const orderedNodes = useMemo(() => {
-        return [...nodes].sort((a, b) => {
-            const aTime = a.date ? new Date(a.date).getTime() : 0;
-            const bTime = b.date ? new Date(b.date).getTime() : 0;
-            return aTime - bTime;
+interface CardProps {
+    node: DiagnosticNode;
+    index: number;
+    selected: boolean;
+    onPointerDown: (e: React.PointerEvent) => void;
+    onPointerMove: (e: React.PointerEvent) => void;
+    onPointerUp: () => void;
+    onClick: () => void;
+    cardRef: (el: HTMLDivElement | null) => void;
+    pos: { x: number; y: number };
+}
+
+function NodeCard({ node, index, selected, onPointerDown, onPointerMove, onPointerUp, onClick, cardRef, pos }: CardProps) {
+    const cfg = getCfg(node.type);
+    const Icon = cfg.Icon;
+
+    return (
+        <div
+            ref={cardRef}
+            style={{
+                position: 'absolute',
+                left: pos.x,
+                top: pos.y,
+                width: NODE_W,
+                zIndex: selected ? 20 : 10,
+                cursor: 'grab',
+                transition: 'filter 0.2s ease',
+                filter: selected
+                    ? `drop-shadow(0 0 16px ${cfg.accent}55) drop-shadow(0 4px 12px rgba(0,0,0,0.10))`
+                    : 'drop-shadow(0 2px 8px rgba(15,23,42,0.10))',
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onClick={onClick}
+        >
+            {/* Card container */}
+            <div
+                style={{
+                    borderRadius: 14,
+                    overflow: 'hidden',
+                    border: selected ? `2px solid ${cfg.accent}` : '1.5px solid #e2e8f0',
+                    background: '#ffffff',
+                }}
+            >
+                {/* ── Header with gradient ── */}
+                <div
+                    style={{
+                        background: cfg.headerBg,
+                        padding: '8px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 7,
+                    }}
+                >
+                    {/* Step badge */}
+                    <span
+                        style={{
+                            width: 20, height: 20,
+                            borderRadius: 99,
+                            background: 'rgba(255,255,255,0.25)',
+                            color: '#fff',
+                            fontSize: 9,
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            border: '1px solid rgba(255,255,255,0.3)',
+                        }}
+                    >{index + 1}</span>
+
+                    {/* Icon */}
+                    <span
+                        style={{
+                            width: 20, height: 20,
+                            borderRadius: 6,
+                            background: cfg.iconBg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Icon style={{ width: 11, height: 11, color: '#fff' }} />
+                    </span>
+
+                    {/* Type label */}
+                    <span
+                        style={{
+                            fontSize: 8.5,
+                            fontWeight: 800,
+                            flexGrow: 1,
+                            color: 'rgba(255,255,255,0.92)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                        }}
+                    >{cfg.label}</span>
+
+                    {/* Drag hint */}
+                    <Move style={{ width: 9, height: 9, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
+                </div>
+
+                {/* ── Body ── */}
+                <div style={{ padding: '8px 10px', background: cfg.bg }}>
+
+                    {/* Title */}
+                    <p style={{
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        lineHeight: 1.35,
+                        marginBottom: node.description ? 4 : 0,
+                    }}>
+                        {node.title}
+                    </p>
+
+                    {/* Description */}
+                    {node.description && (
+                        <p style={{
+                            fontSize: 9.5,
+                            color: '#475569',
+                            lineHeight: 1.45,
+                            marginBottom: node.parameters && node.parameters.length > 0 ? 6 : 0,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                        }}>
+                            {node.description}
+                        </p>
+                    )}
+
+                    {/* Parameters */}
+                    {node.parameters && node.parameters.length > 0 && (
+                        <div style={{
+                            borderRadius: 7,
+                            border: '1px solid #e2e8f0',
+                            overflow: 'hidden',
+                            marginTop: 5,
+                        }}>
+                            {node.parameters.map((p, pi) => {
+                                const cs = chipStyle(p.status);
+                                return (
+                                    <div
+                                        key={p.id || p.name}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '2.5px 7px',
+                                            background: pi % 2 === 0 ? '#f8fafc' : '#fff',
+                                            borderTop: pi > 0 ? '1px solid #f1f5f9' : 'none',
+                                        }}
+                                    >
+                                        <span style={{
+                                            fontSize: 8.5,
+                                            color: '#64748b',
+                                            fontWeight: 600,
+                                            flexShrink: 0,
+                                            maxWidth: '52%',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            marginRight: 5,
+                                        }}>
+                                            {p.name}
+                                        </span>
+                                        <span style={{
+                                            fontSize: 8.5,
+                                            fontWeight: 800,
+                                            padding: '1px 5px',
+                                            borderRadius: 99,
+                                            background: cs.bg,
+                                            color: cs.text,
+                                            border: `1px solid ${cs.bdr}`,
+                                            whiteSpace: 'nowrap',
+                                        }}>
+                                            {p.value}{p.unit ? ` ${p.unit}` : ''}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Date footer */}
+                    {node.date && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginTop: 6,
+                            paddingTop: 5,
+                            borderTop: '1px solid #e2e8f0',
+                        }}>
+                            <Calendar style={{ width: 9, height: 9, color: '#94a3b8' }} />
+                            <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>
+                                {(() => {
+                                    try {
+                                        return new Date(node.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    } catch { return node.date; }
+                                })()}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* ── Selected highlight bottom bar ── */}
+                {selected && (
+                    <div style={{
+                        height: 3,
+                        background: cfg.headerBg,
+                    }} />
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export function DiagnosticMap({ nodes }: { nodes: DiagnosticNode[] }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    const [zoom,       setZoom]   = useState(0.80);
+    const [pan,        setPan]    = useState({ x: 30, y: 24 });
+    const [heights,    setHeights]   = useState<Record<string, number>>({});
+    const [positions,  setPositions] = useState<Record<string, { x: number; y: number }>>({});
+    const [selectedId, setSelectedId] = useState('');
+
+    // Sort chronologically by date
+    const ordered = useMemo(() =>
+        [...nodes].sort((a, b) => (a.date ? +new Date(a.date) : 0) - (b.date ? +new Date(b.date) : 0)),
+    [nodes]);
+
+    // Build initial staggered column layout
+    const buildLayout = useCallback(
+        (hs: Record<string, number>): Record<string, { x: number; y: number }> => {
+            const coords: Record<string, { x: number; y: number }> = {};
+            let y = 40;
+            ordered.forEach((n, i) => {
+                coords[n.id] = { x: colX(i), y };
+                y += (hs[n.id] ?? 110) + V_GAP;
+            });
+            return coords;
+        },
+        [ordered],
+    );
+
+    // Measure real heights after DOM paint
+    useLayoutEffect(() => {
+        const hs: Record<string, number> = {};
+        ordered.forEach(n => {
+            const el = cardRefs.current[n.id];
+            if (el) hs[n.id] = el.offsetHeight;
         });
-    }, [nodes]);
+        setHeights(hs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ordered]);
 
-    const [selectedId, setSelectedId] = useState(orderedNodes[0]?.id || '');
-    const selectedNode = orderedNodes.find(node => node.id === selectedId) || orderedNodes[0];
-    const stage = stageFrom(orderedNodes);
-    const tnm = tnmFrom(orderedNodes);
-    const stageTone = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG] || 'bg-teal-50 text-teal-800 border-teal-200';
+    // Rebuild positions when heights are known
+    useEffect(() => {
+        if (ordered.length === 0) return;
+        setPositions(buildLayout(heights));
+        setSelectedId(ordered[0]?.id ?? '');
+    }, [ordered, heights, buildLayout]);
 
-    // Compact Card Dimensions for Pixel-Perfect Canvas Fitting
-    const CARD_WIDTH = 232;
-    const CARD_HEIGHT = 122;
-    const COL_GAP = 24;
-    const ROW_GAP = 24;
+    const selectedNode = useMemo(
+        () => ordered.find(n => n.id === selectedId) ?? ordered[0] ?? null,
+        [ordered, selectedId],
+    );
 
-    // Initial Layout Coordinates (3 columns, 4 rows, perfectly centered with margin)
-    const initialCoords = useMemo(() => {
-        const map: Record<string, { x: number; y: number }> = {};
-        orderedNodes.forEach((node, idx) => {
-            const col = idx % 3;
-            const row = Math.floor(idx / 3);
-            map[node.id] = {
-                x: 20 + col * (CARD_WIDTH + COL_GAP),
-                y: 20 + row * (CARD_HEIGHT + ROW_GAP),
-            };
-        });
-        return map;
-    }, [orderedNodes]);
+    // ── Drag & Pan (pointer capture) ──────────────────────────────────────
 
-    // Dynamic positions state when dragging cards
-    const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+    const drag = useRef<{
+        mode: 'none' | 'node' | 'pan';
+        id: string; sx: number; sy: number; px: number; py: number;
+    }>({ mode: 'none', id: '', sx: 0, sy: 0, px: 0, py: 0 });
+
+    const startNode = useCallback((e: React.PointerEvent, id: string) => {
+        e.stopPropagation();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const p = positions[id] ?? { x: 0, y: 0 };
+        drag.current = { mode: 'node', id, sx: e.clientX, sy: e.clientY, px: p.x, py: p.y };
+    }, [positions]);
+
+    const startPan = useCallback((e: React.PointerEvent) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        drag.current = { mode: 'pan', id: '', sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
+    }, [pan]);
+
+    const onMove = useCallback((e: React.PointerEvent) => {
+        const d = drag.current;
+        if (d.mode === 'none') return;
+        const dx = e.clientX - d.sx;
+        const dy = e.clientY - d.sy;
+        if (d.mode === 'pan') {
+            setPan({ x: d.px + dx, y: d.py + dy });
+        } else {
+            setPositions(prev => ({
+                ...prev,
+                [d.id]: { x: d.px + dx / zoom, y: d.py + dy / zoom },
+            }));
+        }
+    }, [zoom]);
+
+    const onUp = useCallback(() => { drag.current.mode = 'none'; }, []);
+
+    // ── Scroll-wheel zoom ─────────────────────────────────────────────────
 
     useEffect(() => {
-        setPositions(initialCoords);
-    }, [initialCoords]);
+        const el = containerRef.current;
+        if (!el) return;
+        const handler = (e: WheelEvent) => {
+            e.preventDefault();
+            setZoom(z => Math.min(2.0, Math.max(0.2, z + (e.deltaY > 0 ? -0.08 : 0.08))));
+        };
+        el.addEventListener('wheel', handler, { passive: false });
+        return () => el.removeEventListener('wheel', handler);
+    }, []);
 
-    const handleReset = () => {
-        setZoom(1);
-        setPositions(initialCoords);
+    const resetView = () => {
+        setPositions(buildLayout(heights));
+        setZoom(0.80);
+        setPan({ x: 30, y: 24 });
     };
 
-    if (orderedNodes.length === 0) {
+    const canvasH = useMemo(() => {
+        const ys = ordered.map(n => (positions[n.id]?.y ?? 0) + (heights[n.id] ?? 110));
+        return Math.max(600, ...ys) + 100;
+    }, [ordered, positions, heights]);
+
+    if (ordered.length === 0) {
         return (
-            <div className="p-6 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 font-medium">
-                No diagnostic pathway available.
+            <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', height: 260, borderRadius: 18,
+                border: '2px dashed #e2e8f0', background: '#f8fafc',
+                color: '#94a3b8',
+            }}>
+                <Activity style={{ width: 32, height: 32, marginBottom: 8, opacity: 0.3 }} />
+                <p style={{ fontSize: 13, fontWeight: 700 }}>No pathway steps recorded yet</p>
             </div>
         );
     }
 
-    const selectedType = selectedNode?.type || 'diagnosis';
-    const selectedCfg = TYPE_CONFIG[selectedType] || TYPE_CONFIG.diagnosis;
-    const SelectedIcon = selectedCfg.Icon;
-
     return (
-        <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-xs font-sans">
-            {/* Header Controls Bar */}
-            <div className="border-b border-slate-100 px-4 py-3 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                <div>
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-teal-700">
-                        <Activity className="w-3.5 h-3.5" />
-                        Interactive Diagnostic Mind Map
+        <div style={{
+            display: 'flex', flexDirection: 'column',
+            borderRadius: 20,
+            border: '1.5px solid #e2e8f0',
+            background: '#fff',
+            overflow: 'hidden',
+            boxShadow: '0 4px 24px -4px rgba(15,23,42,0.08)',
+            userSelect: 'none',
+        }}>
+
+            {/* ── Toolbar ─────────────────────────────────────────────────── */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 16px',
+                borderBottom: '1px solid #f1f5f9',
+                background: 'linear-gradient(to right, #f8fafc, #f0fdfa)',
+                flexWrap: 'wrap',
+                gap: 8,
+                flexShrink: 0,
+            }}>
+                {/* Left: title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        background: 'linear-gradient(135deg, #0d9488, #0891b2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(13,148,136,0.3)',
+                    }}>
+                        <Activity style={{ width: 14, height: 14, color: '#fff' }} />
                     </div>
-                    <h3 className="text-base font-black text-slate-900 mt-0.5">Clinical Pathway Canvas</h3>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black ${stageTone}`}>{stage}</span>
-                    {tnm && <span className="px-2.5 py-0.5 rounded-full border border-slate-200 bg-white text-[10px] font-black text-slate-700">{tnm}</span>}
-
-                    {/* Zoom Toolbar */}
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs ml-1">
-                        <button
-                            onClick={() => setZoom(z => Math.min(z + 0.1, 1.3))}
-                            className="p-1 hover:bg-teal-50 hover:text-teal-700 rounded-lg text-slate-600 transition-colors"
-                            title="Zoom In"
-                        >
-                            <ZoomIn className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={() => setZoom(z => Math.max(z - 0.1, 0.6))}
-                            className="p-1 hover:bg-teal-50 hover:text-teal-700 rounded-lg text-slate-600 transition-colors"
-                            title="Zoom Out"
-                        >
-                            <ZoomOut className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={handleReset}
-                            className="p-1 hover:bg-teal-50 hover:text-teal-700 rounded-lg text-slate-600 transition-colors"
-                            title="Reset Layout"
-                        >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-[9px] font-black text-slate-400 px-1.5 border-l border-slate-100">
-                            {Math.round(zoom * 100)}%
+                    <div>
+                        <span style={{ fontSize: 12, fontWeight: 900, color: '#0f172a' }}>
+                            Clinical Pathway Map
+                        </span>
+                        <span style={{
+                            marginLeft: 8,
+                            background: 'linear-gradient(135deg, #0d9488, #0891b2)',
+                            color: '#fff',
+                            fontSize: 9.5,
+                            fontWeight: 800,
+                            padding: '1.5px 7px',
+                            borderRadius: 99,
+                        }}>
+                            {ordered.length} steps
                         </span>
                     </div>
                 </div>
-            </div>
 
-            {/* Instruction Banner */}
-            <div className="bg-teal-50/50 border-b border-teal-100/50 px-4 py-1.5 flex items-center justify-between text-xs text-teal-800 font-semibold">
-                <div className="flex items-center gap-1.5">
-                    <MousePointerClick className="w-3.5 h-3.5 text-teal-600" />
-                    <span className="text-[11px]">Drag any card to reposition. Dotted connectors update automatically.</span>
+                {/* Right: controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
+                        Scroll to zoom · Drag to pan · Click to inspect
+                    </span>
+
+                    {/* Zoom controls */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center',
+                        background: '#f1f5f9',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        padding: '2px 3px',
+                        gap: 1,
+                    }}>
+                        <button
+                            onClick={() => setZoom(z => Math.min(2, z + 0.1))}
+                            title="Zoom In"
+                            style={{
+                                width: 26, height: 26, borderRadius: 6,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                color: '#64748b',
+                            }}
+                        >
+                            <ZoomIn style={{ width: 13, height: 13 }} />
+                        </button>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#475569', width: 34, textAlign: 'center' }}>
+                            {Math.round(zoom * 100)}%
+                        </span>
+                        <button
+                            onClick={() => setZoom(z => Math.max(0.2, z - 0.1))}
+                            title="Zoom Out"
+                            style={{
+                                width: 26, height: 26, borderRadius: 6,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                color: '#64748b',
+                            }}
+                        >
+                            <ZoomOut style={{ width: 13, height: 13 }} />
+                        </button>
+                        <div style={{ width: 1, height: 14, background: '#e2e8f0', margin: '0 2px' }} />
+                        <button
+                            onClick={resetView}
+                            title="Reset View"
+                            style={{
+                                width: 26, height: 26, borderRadius: 6,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                color: '#64748b',
+                            }}
+                        >
+                            <RotateCcw style={{ width: 12, height: 12 }} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                // Center on selected node
+                                const pos = selectedNode ? positions[selectedNode.id] : null;
+                                if (pos) setPan({ x: 80 - pos.x * zoom, y: 80 - pos.y * zoom });
+                            }}
+                            title="Focus Selected"
+                            style={{
+                                width: 26, height: 26, borderRadius: 6,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                color: '#0d9488',
+                            }}
+                        >
+                            <Crosshair style={{ width: 12, height: 12 }} />
+                        </button>
+                    </div>
                 </div>
-                <span className="text-[10px] font-black text-teal-700 bg-white px-2 py-0.5 rounded-full border border-teal-200">
-                    {orderedNodes.length} Steps
-                </span>
             </div>
 
-            {/* CANVAS BOARD CONTAINER */}
-            <div className="relative w-full h-[610px] overflow-auto bg-[radial-gradient(#cbd5e1_1.5px,transparent_1.5px)] [background-size:20px_20px] bg-slate-50/60 border-b border-slate-100 shadow-inner">
-                <div
-                    style={{
-                        transform: `scale(${zoom})`,
-                        transformOrigin: '0 0',
-                        width: '790px',
-                        height: '610px',
-                        position: 'relative'
-                    }}
-                    className="transition-transform duration-200 ease-out p-3"
-                >
-                    {/* SVG DOTTED CONNECTING LINES LAYER */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+            {/* ── Canvas ──────────────────────────────────────────────────── */}
+            <div
+                ref={containerRef}
+                style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    cursor: 'grab',
+                    height: 520,
+                    background: `
+                        radial-gradient(circle, rgba(13,148,136,0.07) 1px, transparent 1px),
+                        linear-gradient(to bottom right, #f0fdfa, #f8fafc, #eff6ff)
+                    `,
+                    backgroundSize: '24px 24px, 100% 100%',
+                }}
+                onPointerDown={startPan}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerLeave={onUp}
+            >
+                <div style={{
+                    position: 'absolute',
+                    left: pan.x,
+                    top: pan.y,
+                    transformOrigin: '0 0',
+                    transform: `scale(${zoom})`,
+                    width: CANVAS_W,
+                    height: canvasH,
+                }}>
+
+                    {/* ── SVG Arrows (rendered below nodes, z:8) ─────────── */}
+                    <svg
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: CANVAS_W,
+                            height: canvasH,
+                            pointerEvents: 'none',
+                            zIndex: 8,
+                            overflow: 'visible',
+                        }}
+                    >
                         <defs>
-                            <marker id="arrowHead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d9488" />
+                            {/* Arrowhead marker — solid teal */}
+                            <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                                <path d="M1,2 L9,5 L1,8 Z" fill="#0d9488" />
                             </marker>
-                            <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            {/* Gradient stroke */}
+                            <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="0%" stopColor="#0d9488" />
-                                <stop offset="100%" stopColor="#0284c7" />
+                                <stop offset="60%" stopColor="#0891b2" />
+                                <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.4} />
                             </linearGradient>
+                            {/* Glow filter */}
+                            <filter id="edgeGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="1.8" result="blur" />
+                                <feMerge>
+                                    <feMergeNode in="blur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
                         </defs>
 
-                        {/* Edge-to-Edge Dotted Lines from Step 1 -> Step 2 -> Step 3... */}
-                        {orderedNodes.map((node, i) => {
-                            if (i === orderedNodes.length - 1) return null;
-                            const nextNode = orderedNodes[i + 1];
-                            const p1 = positions[node.id] || initialCoords[node.id];
-                            const p2 = positions[nextNode.id] || initialCoords[nextNode.id];
+                        {ordered.map((node, i) => {
+                            if (i === ordered.length - 1) return null;
+                            const next = ordered[i + 1];
+                            const p1   = positions[node.id];
+                            const p2   = positions[next.id];
                             if (!p1 || !p2) return null;
 
-                            const isHorizontalNext = Math.abs(p2.x - (p1.x + CARD_WIDTH)) < (COL_GAP + 100);
+                            const h1 = heights[node.id] ?? 110;
+                            // Arrow exits from bottom-center of source card
+                            const x1 = p1.x + NODE_W / 2;
+                            const y1 = p1.y + h1 + 1;
+                            // Arrow enters top-center of target card
+                            const x2 = p2.x + NODE_W / 2;
+                            const y2 = p2.y - 1;
 
-                            let x1, y1, x2, y2;
-                            if (isHorizontalNext && p2.x > p1.x) {
-                                x1 = p1.x + CARD_WIDTH;
-                                y1 = p1.y + CARD_HEIGHT / 2;
-                                x2 = p2.x;
-                                y2 = p2.y + CARD_HEIGHT / 2;
-                            } else {
-                                x1 = p1.x + CARD_WIDTH / 2;
-                                y1 = p1.y + CARD_HEIGHT;
-                                x2 = p2.x + CARD_WIDTH / 2;
-                                y2 = p2.y;
-                            }
-
-                            const dx = x2 - x1;
-                            const dy = y2 - y1;
-                            const cx1 = x1 + (isHorizontalNext ? dx * 0.4 : 0);
-                            const cy1 = y1 + (isHorizontalNext ? 0 : dy * 0.4);
-                            const cx2 = x1 + (isHorizontalNext ? dx * 0.6 : dx);
-                            const cy2 = y1 + (isHorizontalNext ? dy : dy * 0.6);
-
-                            const pathD = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+                            const d = bezierPath(x1, y1 + 2, x2, y2 - 8);
 
                             return (
-                                <g key={`edge-${node.id}-${nextNode.id}`}>
+                                <g key={`edge-${node.id}-${next.id}`}>
+                                    {/* Glow halo */}
                                     <path
-                                        d={pathD}
+                                        d={d}
                                         fill="none"
-                                        stroke="#ccfbf1"
-                                        strokeWidth="4"
+                                        stroke="#0d9488"
+                                        strokeWidth={10}
+                                        strokeOpacity={0.08}
+                                        strokeLinecap="round"
+                                        filter="url(#edgeGlow)"
                                     />
+                                    {/* Main edge */}
                                     <path
-                                        d={pathD}
+                                        d={d}
                                         fill="none"
-                                        stroke="url(#lineGrad)"
-                                        strokeWidth="2"
-                                        strokeDasharray="5 4"
-                                        markerEnd="url(#arrowHead)"
+                                        stroke="url(#edgeGrad)"
+                                        strokeWidth={2.5}
+                                        strokeLinecap="round"
+                                        strokeDasharray="none"
+                                        markerEnd="url(#arrowTeal)"
+                                    />
+                                    {/* Midpoint label dot */}
+                                    <circle
+                                        cx={(x1 + x2) / 2}
+                                        cy={(y1 + y2) / 2}
+                                        r={3}
+                                        fill="#0d9488"
+                                        fillOpacity={0.35}
                                     />
                                 </g>
                             );
                         })}
                     </svg>
 
-                    {/* DRAGGABLE COMPACT NODE CARDS */}
-                    {orderedNodes.map((node, index) => {
-                        const type = node.type || 'diagnosis';
-                        const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.diagnosis;
-                        const Icon = cfg.Icon;
-                        const active = selectedNode?.id === node.id;
-                        const pos = positions[node.id] || initialCoords[node.id] || { x: 20, y: 20 };
-
+                    {/* ── Node Cards ────────────────────────────────────── */}
+                    {ordered.map((node, idx) => {
+                        const pos = positions[node.id] ?? { x: COL_C, y: 40 + idx * 140 };
+                        const sel = selectedId === node.id;
                         return (
-                            <motion.div
+                            <NodeCard
                                 key={node.id}
-                                drag
-                                dragMomentum={false}
-                                dragElastic={0}
-                                onDrag={(_, info) => {
-                                    setPositions(prev => ({
-                                        ...prev,
-                                        [node.id]: {
-                                            x: (prev[node.id]?.x ?? pos.x) + info.delta.x / zoom,
-                                            y: (prev[node.id]?.y ?? pos.y) + info.delta.y / zoom,
-                                        }
-                                    }));
-                                }}
-                                style={{
-                                    left: `${pos.x}px`,
-                                    top: `${pos.y}px`,
-                                    width: `${CARD_WIDTH}px`,
-                                    height: `${CARD_HEIGHT}px`,
-                                    position: 'absolute'
-                                }}
+                                node={node}
+                                index={idx}
+                                selected={sel}
+                                pos={pos}
+                                cardRef={el => { cardRefs.current[node.id] = el; }}
+                                onPointerDown={e => startNode(e, node.id)}
+                                onPointerMove={onMove}
+                                onPointerUp={onUp}
                                 onClick={() => setSelectedId(node.id)}
-                                whileHover={{ scale: 1.02 }}
-                                whileDrag={{ scale: 1.05, zIndex: 50 }}
-                                className={`z-10 rounded-2xl bg-white border-2 p-2.5 shadow-xs cursor-grab active:cursor-grabbing flex flex-col justify-between transition-shadow ${active ? `${cfg.border} ring-4 ring-teal-500/20 shadow-md border-teal-500` : 'border-slate-200 hover:border-teal-300'
-                                    }`}
-                            >
-                                {/* Top Row: Circular Step Badge + Category + Drag handle */}
-                                <div className="flex items-center justify-between gap-1 border-b border-slate-100 pb-1.5">
-                                    <div className="flex items-center gap-1.5">
-                                        {/* STEP NUMBER BADGE */}
-                                        <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
-                                            {index + 1}
-                                        </span>
-                                        <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded ${cfg.soft} ${cfg.text}`}>
-                                            {cfg.short}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-[9px] font-bold text-slate-400">Step {index + 1}</span>
-                                        <Move className="w-3 h-3 text-slate-300 hover:text-slate-600 cursor-grab" />
-                                    </div>
-                                </div>
-
-                                {/* Content: Crisp Title & Description */}
-                                <div className="py-1">
-                                    <div className="flex items-start gap-1.5">
-                                        <span className={`w-5 h-5 rounded-lg ${cfg.bg} text-white flex items-center justify-center shrink-0 mt-0.5`}>
-                                            <Icon className="w-3 h-3" />
-                                        </span>
-                                        <h4 className="text-xs font-black text-slate-900 leading-tight line-clamp-2">
-                                            {node.title}
-                                        </h4>
-                                    </div>
-                                </div>
-
-                                {/* Bottom Footer Row: Date + Evidence Tag */}
-                                <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 border-t border-slate-100 pt-1.5">
-                                    <span className="flex items-center gap-1 text-slate-500 truncate">
-                                        <Calendar className="w-2.5 h-2.5 text-slate-400" />
-                                        {node.date || 'Tracked'}
-                                    </span>
-                                    <span className="text-teal-700 font-extrabold bg-teal-50 px-1.5 py-0.5 rounded text-[8px] border border-teal-100 shrink-0">
-                                        {(node.parameters || []).length} items
-                                    </span>
-                                </div>
-                            </motion.div>
+                            />
                         );
                     })}
                 </div>
             </div>
 
-            {/* SELECTED NODE DETAILS PANEL */}
+            {/* ── Node Inspector Panel ──────────────────────────────────── */}
             {selectedNode && (
-                <div className="p-4 border-t border-slate-100 bg-white">
-                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
-                        <div className={`xl:col-span-7 rounded-2xl border ${selectedCfg.border} ${selectedCfg.soft} p-3.5`}>
-                            <div className="flex items-start gap-3">
-                                <div className={`w-9 h-9 rounded-xl ${selectedCfg.bg} text-white flex items-center justify-center shrink-0 shadow-2xs`}>
-                                    <SelectedIcon className="w-4 h-4" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className={`text-[10px] font-black uppercase tracking-widest ${selectedCfg.text}`}>{selectedCfg.label}</p>
-                                    <h4 className="text-base font-black text-slate-950 mt-0.5">{selectedNode.title}</h4>
-                                    {selectedNode.description && (
-                                        <p className="text-xs text-slate-700 font-semibold leading-relaxed mt-1.5">{selectedNode.description}</p>
-                                    )}
-                                </div>
+                <div style={{
+                    borderTop: '1px solid #f1f5f9',
+                    background: 'linear-gradient(to right, #f8fafc, #f0fdfa)',
+                    padding: '14px 18px',
+                    flexShrink: 0,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+
+                        {/* Left: node details */}
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                            {/* Type + Date row */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                                <span style={{
+                                    fontSize: 9.5,
+                                    fontWeight: 900,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    color: '#fff',
+                                    background: getCfg(selectedNode.type).headerBg,
+                                    padding: '2px 9px',
+                                    borderRadius: 99,
+                                }}>
+                                    {getCfg(selectedNode.type).label}
+                                </span>
+                                {selectedNode.date && (
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Calendar style={{ width: 11, height: 11 }} />
+                                        {(() => {
+                                            try { return new Date(selectedNode.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }); }
+                                            catch { return selectedNode.date; }
+                                        })()}
+                                    </span>
+                                )}
+                                <span style={{
+                                    marginLeft: 'auto',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: '#94a3b8',
+                                    background: '#f1f5f9',
+                                    padding: '1px 8px',
+                                    borderRadius: 99,
+                                }}>
+                                    Step {(ordered.findIndex(n => n.id === selectedNode.id) + 1)} of {ordered.length}
+                                </span>
                             </div>
 
+                            {/* Title */}
+                            <p style={{ fontSize: 14, fontWeight: 900, color: '#0f172a', marginBottom: 3 }}>
+                                {selectedNode.title}
+                            </p>
+
+                            {/* Description */}
+                            {selectedNode.description && (
+                                <p style={{ fontSize: 12, fontWeight: 500, color: '#475569', lineHeight: 1.55, marginBottom: 4 }}>
+                                    {selectedNode.description}
+                                </p>
+                            )}
+
+                            {/* Rationale */}
                             {selectedNode.rationale && (
-                                <div className="mt-3 rounded-xl bg-white/80 border border-white px-3.5 py-2.5 shadow-2xs">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                                        <Info className="w-3 h-3 text-teal-600" />
-                                        Clinical trigger & rationale
-                                    </p>
-                                    <p className="text-xs font-semibold text-slate-800 leading-relaxed mt-1">{selectedNode.rationale}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="xl:col-span-5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-                            <div className="flex items-center gap-2 mb-2.5">
-                                <FileText className="w-3.5 h-3.5 text-slate-500" />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Evidence and clinical output</p>
-                            </div>
-
-                            {selectedNode.parameters && selectedNode.parameters.length > 0 && (
-                                <div className="grid grid-cols-2 gap-2 mb-2.5">
-                                    {selectedNode.parameters.slice(0, 4).map((param) => (
-                                        <div key={param.id || `${selectedNode.id}-${param.name}`} className={`rounded-xl border px-2.5 py-1.5 ${statusClass(param.status)}`}>
-                                            <p className="text-[9px] font-black uppercase tracking-wide opacity-70 truncate">{param.name}</p>
-                                            <p className="text-xs font-black text-slate-950 mt-0.5 truncate">
-                                                {param.value} <span className="text-[9px] font-bold text-slate-500">{param.unit || ''}</span>
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
+                                <p style={{
+                                    fontSize: 11, fontWeight: 600, color: '#0d9488',
+                                    display: 'flex', alignItems: 'flex-start', gap: 5,
+                                    background: '#f0fdfa', padding: '5px 8px', borderRadius: 8,
+                                    border: '1px solid #ccfbf1', marginTop: 4,
+                                }}>
+                                    <Info style={{ width: 11, height: 11, marginTop: 1, flexShrink: 0 }} />
+                                    {selectedNode.rationale}
+                                </p>
                             )}
 
+                            {/* Outcome */}
                             {selectedNode.outcome && (
-                                <div className="rounded-xl bg-white border border-slate-200 px-3 py-2 shadow-2xs">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                        Documented Decision
-                                    </p>
-                                    <p className="text-xs font-semibold text-slate-800 leading-relaxed mt-1">{selectedNode.outcome}</p>
-                                </div>
+                                <p style={{
+                                    fontSize: 11, fontWeight: 700, color: '#166534',
+                                    display: 'flex', alignItems: 'center', gap: 5,
+                                    marginTop: 5,
+                                }}>
+                                    <CheckCircle2 style={{ width: 12, height: 12, color: '#0d9488', flexShrink: 0 }} />
+                                    {selectedNode.outcome}
+                                </p>
                             )}
                         </div>
+
+                        {/* Right: parameter evidence panel */}
+                        {selectedNode.parameters && selectedNode.parameters.length > 0 && (
+                            <div style={{ flexShrink: 0, width: 220 }}>
+                                <p style={{
+                                    fontSize: 9.5, fontWeight: 900, textTransform: 'uppercase',
+                                    letterSpacing: '0.5px', color: '#94a3b8',
+                                    display: 'flex', alignItems: 'center', gap: 5,
+                                    marginBottom: 7,
+                                }}>
+                                    <FileText style={{ width: 11, height: 11 }} />
+                                    Clinical Evidence
+                                </p>
+                                <div style={{ borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                    {selectedNode.parameters.map((p, i) => {
+                                        const cs = chipStyle(p.status);
+                                        return (
+                                            <div
+                                                key={p.id || p.name}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '6px 12px',
+                                                    background: i % 2 === 0 ? '#f8fafc' : '#fff',
+                                                    borderTop: i > 0 ? '1px solid #f1f5f9' : 'none',
+                                                }}
+                                            >
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {p.name}
+                                                </span>
+                                                <span style={{
+                                                    fontSize: 11, fontWeight: 800,
+                                                    padding: '1.5px 7px', borderRadius: 99,
+                                                    background: cs.bg, color: cs.text, border: `1px solid ${cs.bdr}`,
+                                                    whiteSpace: 'nowrap', flexShrink: 0,
+                                                }}>
+                                                    {p.value}{p.unit ? ` ${p.unit}` : ''}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Navigation prev/next */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
+                        {(() => {
+                            const idx = ordered.findIndex(n => n.id === selectedNode.id);
+                            const hasPrev = idx > 0;
+                            const hasNext = idx < ordered.length - 1;
+                            return (
+                                <>
+                                    {hasPrev && (
+                                        <button
+                                            onClick={() => setSelectedId(ordered[idx - 1].id)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: 5,
+                                                fontSize: 11, fontWeight: 700, color: '#0d9488',
+                                                background: '#f0fdfa', border: '1px solid #ccfbf1',
+                                                borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
+                                            }}
+                                        >
+                                            ← Prev Step
+                                        </button>
+                                    )}
+                                    {hasNext && (
+                                        <button
+                                            onClick={() => setSelectedId(ordered[idx + 1].id)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: 5,
+                                                fontSize: 11, fontWeight: 700, color: '#fff',
+                                                background: 'linear-gradient(135deg, #0d9488, #0891b2)',
+                                                border: 'none',
+                                                borderRadius: 8, padding: '4px 12px', cursor: 'pointer',
+                                                boxShadow: '0 2px 8px rgba(13,148,136,0.25)',
+                                            }}
+                                        >
+                                            Next Step → 
+                                        </button>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}

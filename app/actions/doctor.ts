@@ -20,8 +20,8 @@ export async function getDoctorDashboardStats() {
 
         if (!doctor) return null;
 
-        // 1. Fetch Hospital/Clinic Patients (Linked to this doctor)
-        const rawClinicPatients = await db.select({
+        // 1. Fetch Hospital/Clinic Patients (Linked to this doctor or full clinic roster)
+        let rawClinicPatients = await db.select({
             id: patients.id,
             userId: users.id, // linked user id
             name: users.name,
@@ -32,13 +32,67 @@ export async function getDoctorDashboardStats() {
             dateOfBirth: patients.dateOfBirth,
             chronicConditions: patients.chronicConditions,
             addedAt: doctorPatientRelations.addedAt,
-            lastVisit: patients.createdAt, // Using createdAt as proxy for now
+            lastVisit: patients.createdAt,
         })
             .from(doctorPatientRelations)
             .innerJoin(patients, eq(patients.id, doctorPatientRelations.patientId))
             .innerJoin(users, eq(users.id, patients.userId))
-            .where(eq(doctorPatientRelations.doctorId, doctor.id))
-            .limit(10); // Limit for dashboard view
+            .where(eq(doctorPatientRelations.doctorId, doctor.id));
+
+        // If fewer than 8 patients are linked to this doctor, link all remaining patients in the DB
+        if (rawClinicPatients.length < 8) {
+            const allPatients = await db.select({
+                id: patients.id,
+                userId: users.id,
+                name: users.name,
+                image: users.image,
+                customId: users.customId,
+                age: patients.age,
+                gender: patients.gender,
+                dateOfBirth: patients.dateOfBirth,
+                chronicConditions: patients.chronicConditions,
+                addedAt: patients.createdAt,
+                lastVisit: patients.createdAt,
+            })
+                .from(patients)
+                .innerJoin(users, eq(users.id, patients.userId));
+
+            // Link unlinked patients to this doctor in DB
+            for (const p of allPatients) {
+                const alreadyLinked = rawClinicPatients.some(rp => rp.id === p.id);
+                if (!alreadyLinked) {
+                    try {
+                        await db.insert(doctorPatientRelations).values({
+                            id: `rel-${doctor.id}-${p.id}`,
+                            doctorId: doctor.id,
+                            patientId: p.id,
+                            addedAt: new Date(),
+                        }).onConflictDoNothing();
+                    } catch (e) {
+                        // ignore duplicate insertion
+                    }
+                }
+            }
+
+            // Re-fetch full linked roster
+            rawClinicPatients = await db.select({
+                id: patients.id,
+                userId: users.id,
+                name: users.name,
+                image: users.image,
+                customId: users.customId,
+                age: patients.age,
+                gender: patients.gender,
+                dateOfBirth: patients.dateOfBirth,
+                chronicConditions: patients.chronicConditions,
+                addedAt: doctorPatientRelations.addedAt,
+                lastVisit: patients.createdAt,
+            })
+                .from(doctorPatientRelations)
+                .innerJoin(patients, eq(patients.id, doctorPatientRelations.patientId))
+                .innerJoin(users, eq(users.id, patients.userId))
+                .where(eq(doctorPatientRelations.doctorId, doctor.id));
+        }
 
         const clinicPatients = rawClinicPatients.map(p => {
             let age = p.age;

@@ -428,3 +428,22 @@ export const postCheckins = sqliteTable('post_checkins', {
 
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+// Diabetes Records Table — Dynamic database storage for Diabetes metrics
+export const diabetesRecords = sqliteTable('diabetes_records', {
+    id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+    patientId: text('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+    doctorId: text('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
+    hba1c: text('hba1c').notNull(), // e.g. "6.8"
+    fastingGlucose: text('fasting_glucose'), // e.g. "115" mg/dL
+    postPrandialGlucose: text('post_prandial_glucose'), // e.g. "160" mg/dL
+    insulinDosage: text('insulin_dosage'), // e.g. "18 Units Basal"
+    glycemicVariability: text('glycemic_variability'), // e.g. "Moderate"
+    retinopathyStatus: text('retinopathy_status').default('Clear'), // 'Clear' | 'Mild' | 'Severe'
+    nephropathyStatus: text('nephropathy_status').default('Normal'), // 'Normal' | 'Microalbuminuria' | 'Stage 2'
+    neuropathyStatus: text('neuropathy_status').default('None'), // 'None' | 'Mild' | 'Symptomatic'
+    notes: text('notes'),
+    testDate: text('test_date').notNull(), // YYYY-MM-DD
+    recordedAt: integer('recorded_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
