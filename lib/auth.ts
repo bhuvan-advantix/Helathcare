@@ -37,11 +37,18 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Please enter your email and password");
                 }
 
-                // Find user by email
-                const [user] = await db.select()
+                // Normalize email to avoid case/whitespace mismatches
+                const normalizedEmail = credentials.email.trim().toLowerCase();
+
+                // Fetch all rows for this email (the users table has no created/ordering column,
+                // and duplicated rows can exist from different seed scripts). Prefer an account
+                // that actually holds a valid bcrypt password hash so a Google-only or stale
+                // duplicate never shadows the real account.
+                const matches = await db.select()
                     .from(users)
-                    .where(eq(users.email, credentials.email))
-                    .limit(1);
+                    .where(eq(users.email, normalizedEmail));
+
+                const user = matches.find(u => u.password && u.password.length === 60) ?? matches[0];
 
                 if (!user) {
                     throw new Error("No account found with this email. Please sign up first.");

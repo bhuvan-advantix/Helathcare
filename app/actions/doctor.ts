@@ -39,42 +39,40 @@ export async function getDoctorDashboardStats() {
             .innerJoin(users, eq(users.id, patients.userId))
             .where(eq(doctorPatientRelations.doctorId, doctor.id));
 
-        // If fewer than 8 patients are linked to this doctor, link all remaining patients in the DB
-        if (rawClinicPatients.length < 8) {
-            const allPatients = await db.select({
-                id: patients.id,
-                userId: users.id,
-                name: users.name,
-                image: users.image,
-                customId: users.customId,
-                age: patients.age,
-                gender: patients.gender,
-                dateOfBirth: patients.dateOfBirth,
-                chronicConditions: patients.chronicConditions,
-                addedAt: patients.createdAt,
-                lastVisit: patients.createdAt,
-            })
-                .from(patients)
-                .innerJoin(users, eq(users.id, patients.userId));
+        // Link any patients not yet in this doctor's roster so new EHR profiles show up in search
+        const allPatients = await db.select({
+            id: patients.id,
+            userId: users.id,
+            name: users.name,
+            image: users.image,
+            customId: users.customId,
+            age: patients.age,
+            gender: patients.gender,
+            dateOfBirth: patients.dateOfBirth,
+            chronicConditions: patients.chronicConditions,
+            addedAt: patients.createdAt,
+            lastVisit: patients.createdAt,
+        })
+            .from(patients)
+            .innerJoin(users, eq(users.id, patients.userId));
 
-            // Link unlinked patients to this doctor in DB
-            for (const p of allPatients) {
-                const alreadyLinked = rawClinicPatients.some(rp => rp.id === p.id);
-                if (!alreadyLinked) {
-                    try {
-                        await db.insert(doctorPatientRelations).values({
-                            id: `rel-${doctor.id}-${p.id}`,
-                            doctorId: doctor.id,
-                            patientId: p.id,
-                            addedAt: new Date(),
-                        }).onConflictDoNothing();
-                    } catch (e) {
-                        // ignore duplicate insertion
-                    }
-                }
+        const linkedIds = new Set(rawClinicPatients.map(p => p.id));
+        for (const p of allPatients) {
+            if (linkedIds.has(p.id)) continue;
+            try {
+                await db.insert(doctorPatientRelations).values({
+                    id: `rel-${doctor.id}-${p.id}`,
+                    doctorId: doctor.id,
+                    patientId: p.id,
+                    addedAt: new Date(),
+                }).onConflictDoNothing();
+            } catch (e) {
+                // ignore duplicate insertion
             }
+        }
 
-            // Re-fetch full linked roster
+        // Re-fetch full linked roster (includes newly linked patients)
+        if (allPatients.length !== rawClinicPatients.length) {
             rawClinicPatients = await db.select({
                 id: patients.id,
                 userId: users.id,

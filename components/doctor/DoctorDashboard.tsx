@@ -102,6 +102,16 @@ function classifyRisk(conditions: string | null | undefined): RiskLevel {
     return "Low risk";
 }
 
+function matchesPatientQuery(p: PatientRecord, q: string): boolean {
+    if (!q) return true;
+    return Boolean(
+        p.name?.toLowerCase().includes(q) ||
+        p.chronicConditions?.toLowerCase().includes(q) ||
+        p.customId?.toLowerCase().includes(q) ||
+        classifyRisk(p.chronicConditions).toLowerCase().includes(q)
+    );
+}
+
 function getConditionCategory(conditions: string | null | undefined): string {
     if (!conditions) return "Surveillance";
     const c = conditions.toLowerCase();
@@ -419,18 +429,25 @@ export default function DoctorDashboard({ user, initialData }: Props) {
         if (filter === "moderate") list = list.filter(p => classifyRisk(p.chronicConditions) === "Moderate");
         if (filter === "low") list = list.filter(p => classifyRisk(p.chronicConditions) === "Low risk");
         if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            list = list.filter(p =>
-                p.name?.toLowerCase().includes(q) ||
-                p.chronicConditions?.toLowerCase().includes(q) ||
-                p.customId?.toLowerCase().includes(q)
-            );
+            list = list.filter(p => matchesPatientQuery(p, searchQuery.toLowerCase()));
         }
         return [...list].sort((a, b) => {
             const order: Record<RiskLevel, number> = { "High risk": 0, "Moderate": 1, "Low risk": 2 };
             return order[classifyRisk(a.chronicConditions)] - order[classifyRisk(b.chronicConditions)];
         });
     }, [patients, filter, searchQuery]);
+
+    // Inline results (independent of the Action Queue risk filter buttons)
+    const searchResults = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return [];
+        return patients
+            .filter(p => matchesPatientQuery(p, q))
+            .sort((a, b) => {
+                const order: Record<RiskLevel, number> = { "High risk": 0, "Moderate": 1, "Low risk": 2 };
+                return order[classifyRisk(a.chronicConditions)] - order[classifyRisk(b.chronicConditions)];
+            });
+    }, [patients, searchQuery]);
 
     const todayStr = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
@@ -484,14 +501,60 @@ export default function DoctorDashboard({ user, initialData }: Props) {
                     </div>
 
                     {searchQuery && (
-                        <div className="flex items-center justify-end mt-2.5 text-xs font-semibold text-teal-100">
-                            <button
-                                onClick={() => setSearchQuery("")}
-                                className="underline underline-offset-2 hover:text-white"
-                            >
-                                Clear search filter
-                            </button>
-                        </div>
+                        <>
+                            <div className="flex items-center justify-between mt-2.5 text-xs font-semibold text-teal-100">
+                                <span>{searchResults.length} match{searchResults.length === 1 ? "" : "es"}</span>
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="underline underline-offset-2 hover:text-white"
+                                >
+                                    Clear search filter
+                                </button>
+                            </div>
+
+                            {/* ── Inline search results dropdown ── */}
+                            <div className="mt-3 bg-white rounded-2xl shadow-xl border border-slate-100 divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                                {searchResults.length === 0 ? (
+                                    <div className="px-4 py-6 text-center">
+                                        <Users className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                                        <p className="text-xs font-bold text-slate-500">
+                                            No patients match "{searchQuery}"
+                                        </p>
+                                        <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                                            Search by name, ID (e.g. NRV-ONC-001), diagnosis, or risk tier
+                                        </p>
+                                    </div>
+                                ) : (
+                                    searchResults.map((pt, i) => {
+                                        const r = classifyRisk(pt.chronicConditions);
+                                        const badge = RISK_BADGES[r];
+                                        const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
+                                        return (
+                                            <Link
+                                                key={pt.id}
+                                                href={`/doctor/patient/${pt.id}`}
+                                                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-teal-50/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-black border shrink-0 ${avatarColor}`}>
+                                                        {getInitials(pt.name)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-black text-slate-900 truncate">{pt.name || "Patient"}</p>
+                                                        <p className="text-[10px] font-semibold text-slate-500 truncate">
+                                                            {pt.customId || `PAT-${pt.id.slice(0, 5)}`} &middot; {pt.chronicConditions ? pt.chronicConditions.split(',')[0] : "Routine Surveillance"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${badge.bg} ${badge.text} ${badge.border}`}>
+                                                    {r}
+                                                </span>
+                                            </Link>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
