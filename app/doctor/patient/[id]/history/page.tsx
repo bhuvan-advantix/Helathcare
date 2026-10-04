@@ -2,8 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { patients, users, healthParameters, labReports } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { patients, users, healthParameters, labReports, doctors, doctorPatientRelations } from "@/db/schema";
+import { and, eq, desc } from "drizzle-orm";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import Footer from "@/components/Footer";
 import HealthParameters from "@/components/HealthParameters";
@@ -32,6 +32,21 @@ export default async function PatientHistoryPage({ params }: { params: Promise<{
     }
 
     const { patient, user } = patientData[0];
+
+    const [doctor] = await db.select({ id: doctors.id })
+        .from(doctors)
+        .where(eq(doctors.userId, session.user.id))
+        .limit(1);
+    if (!doctor) redirect('/doctor/onboarding');
+
+    const [relationship] = await db.select({ id: doctorPatientRelations.id })
+        .from(doctorPatientRelations)
+        .where(and(
+            eq(doctorPatientRelations.doctorId, doctor.id),
+            eq(doctorPatientRelations.patientId, patient.id),
+        ))
+        .limit(1);
+    if (!relationship) return notFound();
 
     // Fetch Health History
     const history = await db.select().from(healthParameters)

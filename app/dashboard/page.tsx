@@ -16,13 +16,27 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
+    // The patient dashboard is not a shared landing page. Let the middleware
+    // and the current database role take doctors to their own dashboard.
+    if (session.user.role === 'doctor') {
+        redirect('/doctor/dashboard');
+    }
+
+    if (session.user.role !== 'patient') {
+        redirect('/onboarding');
+    }
+
     const userId = session.user.id;
 
     // Fetch User and Patient details
     const [userData] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
     if (!userData) {
-        redirect("/login");
+        redirect("/api/auth/signout?callbackUrl=/login");
+    }
+
+    if (userData.role === 'doctor') {
+        redirect('/doctor/dashboard');
     }
 
     if (!userData.isOnboarded) {

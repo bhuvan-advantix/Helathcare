@@ -20,8 +20,9 @@ export async function getDoctorDashboardStats() {
 
         if (!doctor) return null;
 
-        // 1. Fetch Hospital/Clinic Patients (Linked to this doctor or full clinic roster)
-        let rawClinicPatients = await db.select({
+        // 1. Fetch only patients explicitly linked to this doctor.
+        // A dashboard read must never create new doctor-patient relationships.
+        const rawClinicPatients = await db.select({
             id: patients.id,
             userId: users.id, // linked user id
             name: users.name,
@@ -38,59 +39,6 @@ export async function getDoctorDashboardStats() {
             .innerJoin(patients, eq(patients.id, doctorPatientRelations.patientId))
             .innerJoin(users, eq(users.id, patients.userId))
             .where(eq(doctorPatientRelations.doctorId, doctor.id));
-
-        // Link any patients not yet in this doctor's roster so new EHR profiles show up in search
-        const allPatients = await db.select({
-            id: patients.id,
-            userId: users.id,
-            name: users.name,
-            image: users.image,
-            customId: users.customId,
-            age: patients.age,
-            gender: patients.gender,
-            dateOfBirth: patients.dateOfBirth,
-            chronicConditions: patients.chronicConditions,
-            addedAt: patients.createdAt,
-            lastVisit: patients.createdAt,
-        })
-            .from(patients)
-            .innerJoin(users, eq(users.id, patients.userId));
-
-        const linkedIds = new Set(rawClinicPatients.map(p => p.id));
-        for (const p of allPatients) {
-            if (linkedIds.has(p.id)) continue;
-            try {
-                await db.insert(doctorPatientRelations).values({
-                    id: `rel-${doctor.id}-${p.id}`,
-                    doctorId: doctor.id,
-                    patientId: p.id,
-                    addedAt: new Date(),
-                }).onConflictDoNothing();
-            } catch (e) {
-                // ignore duplicate insertion
-            }
-        }
-
-        // Re-fetch full linked roster (includes newly linked patients)
-        if (allPatients.length !== rawClinicPatients.length) {
-            rawClinicPatients = await db.select({
-                id: patients.id,
-                userId: users.id,
-                name: users.name,
-                image: users.image,
-                customId: users.customId,
-                age: patients.age,
-                gender: patients.gender,
-                dateOfBirth: patients.dateOfBirth,
-                chronicConditions: patients.chronicConditions,
-                addedAt: doctorPatientRelations.addedAt,
-                lastVisit: patients.createdAt,
-            })
-                .from(doctorPatientRelations)
-                .innerJoin(patients, eq(patients.id, doctorPatientRelations.patientId))
-                .innerJoin(users, eq(users.id, patients.userId))
-                .where(eq(doctorPatientRelations.doctorId, doctor.id));
-        }
 
         const clinicPatients = rawClinicPatients.map(p => {
             let age = p.age;
@@ -166,13 +114,12 @@ export async function getDoctorDashboardStats() {
             hoursLogged = calculated === "0.0" ? "3.7" : calculated;
         }
 
-        // Active realistic consultation count if 0
-        const activeConsultations = dailyConsultations?.count > 0 ? dailyConsultations.count : 2;
+        const activeConsultations = Number(dailyConsultations?.count ?? 0);
 
         return {
             stats: [
-                { label: "Daily Consultations", value: `${activeConsultations} Active`, trend: "2 Completed Today", trendDir: "up" },
-                { label: "Total Patients", value: totalPatients.count || 4, trend: "Active Clinic", trendDir: "neutral" },
+                { label: "Daily Consultations", value: `${activeConsultations} Active`, trend: `${activeConsultations} Completed Today`, trendDir: activeConsultations > 0 ? "up" : "neutral" },
+                { label: "Total Patients", value: Number(totalPatients.count ?? 0), trend: "Linked to Doctor", trendDir: "neutral" },
                 { label: "Clinical Time Today", value: `${hoursLogged}h`, trend: "Encounter Active", trendDir: "up" }
             ],
             patients: clinicPatients,

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors, patientVitals } from "@/db/schema";
+import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors, patientVitals, doctorPatientRelations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import Footer from "@/components/Footer";
@@ -38,6 +38,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     // Fetch Doctor's ID (current session user)
     const [doctor] = await db.select().from(doctors).where(eq(doctors.userId, session.user.id)).limit(1);
     if (!doctor) redirect('/doctor/onboarding');
+
+    const [relationship] = await db.select({ id: doctorPatientRelations.id })
+        .from(doctorPatientRelations)
+        .where(and(
+            eq(doctorPatientRelations.doctorId, doctor.id),
+            eq(doctorPatientRelations.patientId, patient.id),
+        ))
+        .limit(1);
+    if (!relationship) return notFound();
 
     // Auto-stop any medications whose duration has passed
     await autoStopExpiredMedications(patient.id);

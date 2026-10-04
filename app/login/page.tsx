@@ -73,9 +73,9 @@ function LoginContent() {
                     : result.error;
                 setLoginError(msg);
             } else if (result?.ok) {
-                // Hard redirect ensures session cookie is refreshed and middleware routes user to correct dashboard/onboarding page
-                const targetUrl = selectedRole === 'doctor' ? '/doctor/dashboard' : '/dashboard';
-                window.location.href = targetUrl;
+                // Use one database-driven entry route. Middleware resolves the
+                // current account role and sends the user to the correct area.
+                window.location.href = '/dashboard';
             }
         } catch (error) {
             setLoginError('An unexpected error occurred. Please try again.');
@@ -86,7 +86,7 @@ function LoginContent() {
 
     // Redirect if already logged in — role-aware routing
     useEffect(() => {
-        if (status === 'authenticated' && session?.user) {
+        if (status === 'authenticated' && session?.user && !selectedRole) {
             const role = session.user.role;
             const isOnboarded = session.user.isOnboarded;
 

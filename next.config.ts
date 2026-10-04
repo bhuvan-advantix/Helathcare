@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep dependency resolution scoped to this Next.js project when another
+  // package manager project exists in the parent directory.
+  turbopack: {
+    root: process.cwd(),
+  },
   images: {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

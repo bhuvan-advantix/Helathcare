@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors, patientVitals } from "@/db/schema";
+import { patients, users, labReports, healthParameters, timelineEvents, medications, patientAllergies, patientConditions, doctorPrivateNotes, doctors, patientVitals, doctorPatientRelations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import DoctorConsultationView from "@/components/doctor/DoctorConsultationView";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
@@ -42,6 +42,15 @@ export default async function ConsultationPage({ params }: { params: Promise<{ i
     if (!doctorRow.length) redirect('/doctor/onboarding');
     const { doctor, userName: doctorUserName } = doctorRow[0];
     const doctorWithName = { ...doctor, userName: doctorUserName };
+
+    const [relationship] = await db.select({ id: doctorPatientRelations.id })
+        .from(doctorPatientRelations)
+        .where(and(
+            eq(doctorPatientRelations.doctorId, doctor.id),
+            eq(doctorPatientRelations.patientId, patient.id),
+        ))
+        .limit(1);
+    if (!relationship) return notFound();
 
     // Parallel Fetching of all medical data
     const [

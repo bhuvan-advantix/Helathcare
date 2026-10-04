@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/db';
-import { prescriptions } from '@/db/schema';
+import { doctors, patients, prescriptions, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+
+function doctorDisplayName(value: unknown) {
+    const name = String(value ?? '').trim();
+    if (!name) return 'Doctor';
+    return /^dr\.\s/i.test(name) ? name : `Dr. ${name}`;
+}
 
 function escapePdfText(value: unknown) {
     return String(value ?? '')
@@ -45,18 +51,18 @@ function createStructuredPrescriptionPdf(rx: typeof prescriptions.$inferSelect) 
 
     rect(0, 742, 612, 50, '0.00 0.55 0.50');
     text('NiraivaHealth', 42, 762, 20, true, '1 1 1');
-    text('OnCoTrack Oncology Prescription', 198, 766, 13, true, '1 1 1');
+    text(data.specialization ? `${data.specialization} Prescription` : 'Clinical Prescription', 198, 766, 13, true, '1 1 1');
     text(data.prescriptionNo || `RX-${rx.id.slice(0, 8)}`, 452, 766, 10, true, '1 1 1');
 
     text(`Date: ${data.date || new Date(rx.prescribedAt || Date.now()).toISOString().slice(0, 10)}`, 42, 716, 10, true, '0.12 0.18 0.28');
     text(`Patient: ${data.patientName || 'Patient'}`, 42, 699, 10, true, '0.12 0.18 0.28');
-    text(`Doctor: Dr. ${data.doctorName || 'Ananya Rao'}`, 330, 716, 10, true, '0.12 0.18 0.28');
-    text(data.clinicName || 'Niraiva OnCoTrack Clinic', 330, 699, 9, false, '0.25 0.32 0.43');
+    text(`Doctor: ${doctorDisplayName(data.doctorName)}`, 330, 716, 10, true, '0.12 0.18 0.28');
+    text(data.clinicName || 'Clinic', 330, 699, 9, false, '0.25 0.32 0.43');
     line(42, 684, 570, 684);
 
     rect(42, 632, 528, 38, '0.93 0.98 0.98');
     text('Diagnosis', 56, 654, 8, true, '0.00 0.45 0.42');
-    text(data.diagnosis || 'Oncology follow-up', 56, 640, 10, true, '0.08 0.12 0.20');
+    text(data.diagnosis || 'Clinical follow-up', 56, 640, 10, true, '0.08 0.12 0.20');
 
     let y = 604;
     text('Treatment Plan', 42, y, 11, true, '0.08 0.12 0.20');
@@ -107,11 +113,11 @@ function createStructuredPrescriptionPdf(rx: typeof prescriptions.$inferSelect) 
 
     rect(42, 96, 528, 42, '1.00 0.98 0.90');
     text('Follow-up', 56, 119, 8, true, '0.70 0.35 0.00');
-    text(data.followUp || 'As scheduled by oncology team', 56, 105, 10, true, '0.08 0.12 0.20');
+    text(data.followUp || 'As scheduled by the treating clinician', 56, 105, 10, true, '0.08 0.12 0.20');
 
     line(380, 62, 570, 62, '0.65 0.70 0.78');
-    text('Dr. Ananya Rao', 420, 46, 10, true, '0.08 0.12 0.20');
-    text('Medical Oncology', 428, 32, 8, false, '0.38 0.45 0.55');
+    text(doctorDisplayName(data.doctorName), 420, 46, 10, true, '0.08 0.12 0.20');
+    text(data.specialization || 'Clinical Care', 428, 32, 8, false, '0.38 0.45 0.55');
     text('Clinician-reviewed structured prescription', 42, 32, 8, false, '0.38 0.45 0.55');
 
     const content = commands.join('\n');
@@ -171,6 +177,34 @@ export async function GET(
             return NextResponse.json({ error: 'Prescription not found' }, { status: 404 });
         }
 
+        const [doctorProfile] = rx.doctorId
+            ? await db
+                .select({
+                    name: users.name,
+                    specialization: doctors.specialization,
+                    clinicName: doctors.clinicName,
+                })
+                .from(doctors)
+                .innerJoin(users, eq(users.id, doctors.userId))
+                .where(eq(doctors.id, rx.doctorId))
+                .limit(1)
+            : [];
+
+        const [patientProfile] = await db
+            .select({ name: users.name })
+            .from(patients)
+            .innerJoin(users, eq(users.id, patients.userId))
+            .where(eq(patients.id, rx.patientId))
+            .limit(1);
+
+        const consultationData = {
+            ...((rx.consultationData || {}) as Record<string, unknown>),
+            patientName: ((rx.consultationData || {}) as Record<string, unknown>).patientName || patientProfile?.name,
+            doctorName: ((rx.consultationData || {}) as Record<string, unknown>).doctorName || doctorProfile?.name,
+            specialization: ((rx.consultationData || {}) as Record<string, unknown>).specialization || doctorProfile?.specialization,
+            clinicName: ((rx.consultationData || {}) as Record<string, unknown>).clinicName || doctorProfile?.clinicName,
+        };
+
         // Security: patient can only access their own prescription
         // Doctors can access any prescription they wrote (role check)
         if (session.user.role === 'patient') {
@@ -190,7 +224,7 @@ export async function GET(
             : 'inline; filename="prescription.pdf"';
 
         if (rx.cloudinaryUrl.startsWith('demo-prescription://')) {
-            return new NextResponse(createStructuredPrescriptionPdf(rx), {
+            return new NextResponse(createStructuredPrescriptionPdf({ ...rx, consultationData }), {
                 status: 200,
                 headers: {
                     'Content-Type': 'application/pdf',

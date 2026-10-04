@@ -296,7 +296,7 @@ export default function DoctorDashboard({ user, initialData }: Props) {
             { month: "Feb", multScreen: 1.20, multEarly: 0.72 },
             { month: "Mar", multScreen: 1.58, multEarly: 0.98 },
         ];
-        const base = Math.max(patients.length, 5);
+        const base = patients.length;
         return months.map(({ month, multScreen, multEarly }) => ({
             month,
             Screened: Math.round(base * multScreen),
@@ -306,14 +306,14 @@ export default function DoctorDashboard({ user, initialData }: Props) {
 
     // ── Chart 2: Risk Stratification Donut Chart ───────────────────────────
     const riskPieData = useMemo(() => [
-        { name: "Low Risk", value: Math.max(lowRiskPatients.length, 1), color: "#10b981" },
-        { name: "Moderate Risk", value: Math.max(moderateRiskPatients.length, 1), color: "#f59e0b" },
-        { name: "High Risk", value: Math.max(highRiskPatients.length, 1), color: "#ef4444" },
+        { name: "Low Risk", value: lowRiskPatients.length, color: "#10b981" },
+        { name: "Moderate Risk", value: moderateRiskPatients.length, color: "#f59e0b" },
+        { name: "High Risk", value: highRiskPatients.length, color: "#ef4444" },
     ], [lowRiskPatients.length, moderateRiskPatients.length, highRiskPatients.length]);
 
     // ── Chart 3: NEW Multi-Disciplinary Care Coverage Radar Chart ───────────
     const radarCareData = useMemo(() => {
-        const total = Math.max(patients.length, 1);
+        const total = patients.length;
         const bio = patients.filter(p => p.chronicConditions).length;
         const img = patients.filter(p => /(stage|nodule|breast|lung|lesion|mri|ct)/i.test(p.chronicConditions || "")).length;
         const surg = patients.filter(p => /(carcinoma|lumpectomy|resection|surgery|stage)/i.test(p.chronicConditions || "")).length;
@@ -321,19 +321,19 @@ export default function DoctorDashboard({ user, initialData }: Props) {
         const surv = patients.filter(p => /(surveillance|routine|followup)/i.test(p.chronicConditions || "")).length;
 
         return [
-            { subject: "Biomarkers", score: Math.round((bio / total) * 100) },
-            { subject: "Imaging", score: Math.min(100, Math.round((img / total) * 115)) || 80 },
-            { subject: "Surgery", score: Math.min(100, Math.round((surg / total) * 130)) || 65 },
-            { subject: "Systemic Tx", score: Math.min(100, Math.round((sys / total) * 140)) || 60 },
-            { subject: "Surveillance", score: Math.min(100, Math.round((surv / total) * 125)) || 90 },
-            { subject: "Vitals Check", score: 88 },
+            { subject: "Biomarkers", score: total ? Math.round((bio / total) * 100) : 0 },
+            { subject: "Imaging", score: total ? Math.min(100, Math.round((img / total) * 115)) : 0 },
+            { subject: "Surgery", score: total ? Math.min(100, Math.round((surg / total) * 130)) : 0 },
+            { subject: "Systemic Tx", score: total ? Math.min(100, Math.round((sys / total) * 140)) : 0 },
+            { subject: "Surveillance", score: total ? Math.min(100, Math.round((surv / total) * 125)) : 0 },
+            { subject: "Vitals Check", score: 0 },
         ];
     }, [patients]);
 
     // ── Chart 4: NEW Composed Dual-Axis Chart (Consultations + Target Line Overlay) ──
     const composedTrendData = useMemo(() => {
         const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-        const base = Math.max(patients.length, 5);
+        const base = patients.length;
         const targetRates = [74, 86, 79, 93, 88, 96];
         return months.map((month, idx) => ({
             month,
@@ -362,7 +362,7 @@ export default function DoctorDashboard({ user, initialData }: Props) {
     // ── Chart 6: Daily Encounter & Screening Activity ──────────────────────
     const dailyActivityData = useMemo(() => {
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Today"];
-        const base = Math.max(totalPatientsCount, 4);
+        const base = totalPatientsCount;
         return days.map((day, i) => ({
             day,
             Encounters: Math.round(base * 0.5 + (i % 3) * 1.8),

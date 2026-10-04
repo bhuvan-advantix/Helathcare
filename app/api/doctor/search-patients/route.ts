@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, patients } from "@/db/schema";
+import { users, patients, doctors, doctorPatientRelations } from "@/db/schema";
 import { ilike, and, eq, like, or } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -20,7 +20,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // We JOIN with patients table to get age/gender and the correct Patient ID
+        const [doctor] = await db.select({ id: doctors.id })
+            .from(doctors)
+            .where(eq(doctors.userId, session.user.id))
+            .limit(1);
+
+        if (!doctor) {
+            return NextResponse.json({ error: "Doctor profile not found" }, { status: 403 });
+        }
+
+        // Search only the current doctor's explicitly linked patients.
         const rawPatients = await db.select({
             id: patients.id, // We want the PATIENT ID for actions/links
             userId: users.id,
@@ -33,10 +42,12 @@ export async function GET(req: NextRequest) {
             gender: patients.gender,
             dateOfBirth: patients.dateOfBirth,
         })
-            .from(users)
-            .innerJoin(patients, eq(users.id, patients.userId))
+            .from(doctorPatientRelations)
+            .innerJoin(patients, eq(patients.id, doctorPatientRelations.patientId))
+            .innerJoin(users, eq(users.id, patients.userId))
             .where(
                 and(
+                    eq(doctorPatientRelations.doctorId, doctor.id),
                     eq(users.role, 'patient'),
                     or(
                         ilike(users.customId, `%${query}%`),  // matches anywhere in ID
