@@ -36,7 +36,9 @@ const P_PATIENT_ID = 'demo-oncotrack-hakkim-patient';
 const P_COND_ID    = 'demo-oncotrack-hakkim-condition';
 const P_DIAG_ID    = 'demo-oncotrack-hakkim-diagnostic';
 const CUSTOM_ID    = 'NRV-ONC-006';
-const EMAIL        = 'hakkim@niraiva.health';
+const PATIENT_NAME = 'Mr. Arvind Kumar';
+const SHORT_NAME   = 'Arvind Kumar';
+const EMAIL        = 'arvind.kumar@niraiva.health';
 const LAB_DATE     = '2026-03-24';
 
 async function findDoctor() {
@@ -114,7 +116,7 @@ const visit2 = [
 const nodes = [
     {
         id: 'profile', title: 'Patient Profile — Preventive Oncology Entry',
-        description: 'Mr. HAKKIM, 48-year-old male. Self-referred. Single-day panel at Sabari Lab, 24-Mar-2026 (Visit IDs 26058864 and 26058940). Entry point for preventive oncology risk stratification.',
+        description: `${PATIENT_NAME}, 48-year-old male. Self-referred. Single-day panel at Sabari Lab, 24-Mar-2026 (Visit IDs 26058864 and 26058940). Entry point for preventive oncology risk stratification.`,
         type: 'screening', date: LAB_DATE,
         rationale: '48-year-old male self-referred for full metabolic and endocrine panel. Low TSH and Vitamin D deficiency identified — both carry oncological significance requiring structured follow-up.',
         outcome: 'Complete single-day metabolic, haematological, thyroid, and Vitamin D profile available. Risk stratification initiated.',
@@ -236,7 +238,7 @@ const timeline = [
 // ─── Clinical Notes ───────────────────────────────────────────────────────────
 const clinicalNotes =
     `PREVENTIVE ONCOLOGY INITIAL ASSESSMENT NOTE\n` +
-    `Patient: Mr. HAKKIM | Age: 48 Years | Sex: Male\n` +
+    `Patient: ${PATIENT_NAME} | Age: 48 Years | Sex: Male\n` +
     `NRV-ONC-006 | Referred: Self | Clinician: Dr. Ananya Rao, Medical Oncology, Niraiva OnCoTrack Clinic\n` +
     `\n` +
     `PRESENTING CONCERN\n` +
@@ -286,7 +288,7 @@ const clinicalNotes =
     `   - Vitamin D Total (25 OH): 11.2 ng/ml [MODERATE DEFICIENCY; Optimal 30–100, Moderate Deficiency 10–30]\n` +
     `\n` +
     `CLINICAL ASSESSMENT\n` +
-    `Mr. HAKKIM presents with three clinically significant findings against a background of completely normal haematological, hepatic, and renal parameters:\n` +
+    `${PATIENT_NAME} presents with three clinically significant findings against a background of completely normal haematological, hepatic, and renal parameters:\n` +
     `\n` +
     `1. Subclinical Hyperthyroidism (TSH 0.13 µIU/ml): TSH is critically suppressed at 0.13 µIU/ml (normal: 0.4–4.2) with T3 (1.22) and T4 (7.03) both within normal ranges — the defining pattern of subclinical hyperthyroidism. In a 48-year-old male, persistently suppressed TSH requires thyroid ultrasound to exclude autonomous thyroid nodule or thyroid malignancy. Subclinical hyperthyroidism also carries cardiovascular risk (atrial fibrillation, bone loss) and requires structured follow-up.\n` +
     `\n` +
@@ -305,7 +307,7 @@ const clinicalNotes =
 
 // ─── Treatment Plan ───────────────────────────────────────────────────────────
 const treatmentPlan =
-    `PREVENTIVE ONCOLOGY RISK MANAGEMENT PLAN — Mr. HAKKIM (NRV-ONC-006)\n` +
+    `PREVENTIVE ONCOLOGY RISK MANAGEMENT PLAN — ${PATIENT_NAME} (NRV-ONC-006)\n` +
     `Date Initiated: 17 September 2026 | Clinician: Dr. Ananya Rao, Medical Oncology, Niraiva OnCoTrack Clinic\n` +
     `\n` +
     `SECTION A — INVESTIGATIONS (Priority Order)\n` +
@@ -375,7 +377,7 @@ async function run() {
     // User
     await exec(
         `INSERT INTO users (id, name, email, password, role, is_onboarded, custom_id, is_banned) VALUES (?, ?, ?, ?, 'patient', 1, ?, 0)`,
-        [P_USER_ID, 'Mr. HAKKIM', EMAIL, passwordHash, CUSTOM_ID]
+        [P_USER_ID, PATIENT_NAME, EMAIL, passwordHash, CUSTOM_ID]
     );
     console.log(`✔ users         -> ${EMAIL}`);
 
@@ -453,9 +455,9 @@ async function run() {
     await exec(
         `INSERT INTO lab_reports (id, patient_id, file_name, report_date, lab_name, patient_name, doctor_name, extracted_data, raw_text, analysis, file_size, page_count, file_data, cloudinary_url, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, NULL, NULL, ?)`,
         ['demo-hakkim-report-v1', P_PATIENT_ID,
-         'HAKKIM - Sabari Lab CBC Biochemistry Lipid LFT Panel 24-Mar-2026.pdf',
+         `${SHORT_NAME} - Sabari Lab CBC Biochemistry Lipid LFT Panel 24-Mar-2026.pdf`,
          LAB_DATE, 'Sabari Lab (Try) — Pudukkottai',
-         'Mr. HAKKIM', 'Dr. R. Lavanya MD (Path) / Dr. P. K. Rath MD (Path)',
+         PATIENT_NAME, 'Dr. R. Lavanya MD (Path) / Dr. P. K. Rath MD (Path)',
          json(rpt1),
          'Visit 26058864. CBC all normal: Hb 15.65, WBC 9280, Platelets 2.34 Lakh. Glucose(F) 103 (pre-diabetic). HDL 36 (low), LDL 154 (borderline high), TCH/HDL 5.4 (elevated), LDL/HDL 4.2 (elevated). LFT and renal: all normal. End of Report.',
          'CBC within normal limits. Pre-diabetic fasting glucose. Dyslipidaemia: low HDL, borderline high LDL, elevated lipid ratios. LFT and renal function normal.',
@@ -471,9 +473,9 @@ async function run() {
     await exec(
         `INSERT INTO lab_reports (id, patient_id, file_name, report_date, lab_name, patient_name, doctor_name, extracted_data, raw_text, analysis, file_size, page_count, file_data, cloudinary_url, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, NULL, ?)`,
         ['demo-hakkim-report-v2', P_PATIENT_ID,
-         'HAKKIM - Sabari Lab Vitamin D and Thyroid Function Panel 24-Mar-2026.pdf',
+         `${SHORT_NAME} - Sabari Lab Vitamin D and Thyroid Function Panel 24-Mar-2026.pdf`,
          LAB_DATE, 'Sabari Lab (Try) — Pudukkottai',
-         'Mr. HAKKIM', 'Dr. P. K. Rath MD (Path)',
+         PATIENT_NAME, 'Dr. P. K. Rath MD (Path)',
          json(rpt2),
          'Visit 26058940. Vitamin D Total (25 OH): 11.2 ng/ml (Moderate Deficiency). TSH: 0.13 µIU/ml (CRITICALLY LOW). T3: 1.22 ng/ml (normal). T4: 7.03 µg/dl (normal). End of Report.',
          'Subclinical hyperthyroidism: TSH 0.13 (critically low) with normal T3/T4. Thyroid ultrasound mandatory. Moderate Vitamin D deficiency (11.2 ng/ml). Supplementation indicated.',
@@ -514,7 +516,7 @@ async function run() {
     }
     console.log(`✔ timeline      -> ${timeline.length} events`);
 
-    console.log('\n🎉 Mr. HAKKIM (NRV-ONC-006) seeded successfully.');
+    console.log(`\n🎉 ${PATIENT_NAME} (NRV-ONC-006) seeded successfully.`);
     console.log(`   Patient ID   : ${P_PATIENT_ID}`);
     console.log(`   Custom ID    : ${CUSTOM_ID}`);
     console.log(`   Email        : ${EMAIL}`);

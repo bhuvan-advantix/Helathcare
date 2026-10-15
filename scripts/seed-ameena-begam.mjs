@@ -1,5 +1,5 @@
 // seed-ameena-begam.mjs
-// New oncology workup patient: Mrs. Ameena Begam .S — NRV-ONC-005
+// Oncology workup demo patient — NRV-ONC-005
 //
 // Source documents (ALL values directly from reports, zero inference):
 //   Sabari Lab — Visit 26111939 (07-Jun-2026): HbA1c, eAG, Calcium
@@ -41,7 +41,9 @@ const P_PATIENT_ID = 'demo-oncotrack-ameena-patient';
 const P_COND_ID    = 'demo-oncotrack-ameena-condition';
 const P_DIAG_ID    = 'demo-oncotrack-ameena-diagnostic';
 const CUSTOM_ID    = 'NRV-ONC-005';
-const EMAIL        = 'ameena.begam@niraiva.health';
+const PATIENT_NAME = 'Mrs. Kavitha Sivakumar';
+const SHORT_NAME   = 'Kavitha Sivakumar';
+const EMAIL        = 'kavitha.sivakumar@niraiva.health';
 
 // ─── Find existing doctor ────────────────────────────────────────────────────
 async function findDoctor() {
@@ -209,7 +211,7 @@ const avmBiochem = [
 const nodes = [
     {
         id: 'profile', title: 'Patient Profile & Referral Entry',
-        description: 'Mrs. Ameena Begam .S, 70-year-old female, B Negative. Self-referred. Presenting with generalised weakness and fatigue. Entry point for oncology workup.',
+        description: `${PATIENT_NAME}, 70-year-old female, B Negative. Self-referred. Presenting with generalised weakness and fatigue. Entry point for oncology workup.`,
         type: 'screening', date: '2026-06-07',
         rationale: 'Elderly female with severe unexplained anaemia and markedly elevated HbA1c — dual red flags warranting systematic oncology workup.',
         outcome: 'Initial panel ordered at Sabari Lab; results triggered oncology referral pathway.',
@@ -414,7 +416,7 @@ async function run() {
     await exec(
         `INSERT INTO users (id, name, email, password, role, is_onboarded, custom_id, is_banned)
          VALUES (?, ?, ?, ?, 'patient', 1, ?, 0)`,
-        [P_USER_ID, 'Mrs. Ameena Begam .S', EMAIL, passwordHash, CUSTOM_ID]
+        [P_USER_ID, PATIENT_NAME, EMAIL, passwordHash, CUSTOM_ID]
     );
     console.log(`✔ users         -> ${P_USER_ID} | ${EMAIL}`);
 
@@ -467,7 +469,7 @@ async function run() {
     // ── Diagnostic pathway (mind-map) ──
     const clinicalNotes =
         `ONCOLOGY INITIAL ASSESSMENT NOTE\n` +
-        `Patient: Mrs. Ameena Begam .S | Age: 70 Years | Sex: Female | Blood Group: B Negative (Confirmed)\n` +
+        `Patient: ${PATIENT_NAME} | Age: 70 Years | Sex: Female | Blood Group: B Negative (Confirmed)\n` +
         `NRV-ONC-005 | Referred: Self | Clinician: Dr. Ananya Rao, Medical Oncology, Niraiva OnCoTrack Clinic\n` +
         `\n` +
         `PRESENTING CONCERN\n` +
@@ -522,7 +524,7 @@ async function run() {
         `   - HBsAg: Negative | HIV 1 Antibody: Non-reactive | HIV 2 Antibody: Non-reactive\n` +
         `\n` +
         `CLINICAL ASSESSMENT\n` +
-        `Mrs. Ameena Begam .S presents with a clinically significant constellation of findings across two sequential laboratory visits spanning 53 days:\n` +
+        `${PATIENT_NAME} presents with a clinically significant constellation of findings across two sequential laboratory visits spanning 53 days:\n` +
         `\n` +
         `1. Persistent Severe Microcytic Hypochromic Anaemia: Haemoglobin declined from 9.0 g/dl (Jun 2026) to 8.90 g/dL (Jul 2026) with progressive microcytosis (MCV 64.2–66.3 fL), hypochromia (MCHC 29.0–29.9 g/dl), markedly elevated microcyte percentage (43.5%), and elevated RDW (17.4–17.9%) — indicating ongoing ineffective erythropoiesis. In a 70-year-old woman with no documented aetiology, this pattern carries a high index of suspicion for occult gastrointestinal malignancy causing chronic blood loss, haematological malignancy (multiple myeloma, myelodysplastic syndrome), or cancer-related anaemia of chronic disease.\n` +
         `\n` +
@@ -546,7 +548,7 @@ async function run() {
         `Oncology referral status: ACTIVE — formally initiated 16-Sep-2026 under Dr. Ananya Rao, Medical Oncology.`;
 
     const treatmentPlan =
-        `ONCOLOGY WORKUP PLAN — Mrs. Ameena Begam .S (NRV-ONC-005)\n` +
+        `ONCOLOGY WORKUP PLAN — ${PATIENT_NAME} (NRV-ONC-005)\n` +
         `Date Initiated: 16 September 2026 | Clinician: Dr. Ananya Rao, Medical Oncology, Niraiva OnCoTrack Clinic\n` +
         `\n` +
         `SECTION A — INVESTIGATIONS (Priority Order)\n` +
@@ -626,9 +628,9 @@ async function run() {
         `INSERT INTO lab_reports (id, patient_id, file_name, report_date, lab_name, patient_name, doctor_name, extracted_data, raw_text, analysis, file_size, page_count, file_data, cloudinary_url, uploaded_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, NULL, ?)`,
         ['demo-ameena-report-sabari1', P_PATIENT_ID,
-         'Ameena Begam - Sabari Lab HbA1c Panel 07-Jun-2026.pdf',
+         `${SHORT_NAME} - Sabari Lab HbA1c Panel 07-Jun-2026.pdf`,
          SABARI_DATE_1, 'Sabari Lab (Try) — Pudukkottai',
-         'Mrs. Ameena Begam .S', 'Dr. P. K. Rath MD (Path)',
+         PATIENT_NAME, 'Dr. P. K. Rath MD (Path)',
          json(rpt1ExtractedData),
          'Visit 26111939. HbA1c (HPLC) 12.9%. Estimated Average Glucose 323.5 mg/dl. Calcium 9.12 mg/dl. End of Report.',
          'HbA1c critically elevated at 12.9%. Immediate glycaemic intervention required. Calcium normal.',
@@ -642,9 +644,9 @@ async function run() {
         `INSERT INTO lab_reports (id, patient_id, file_name, report_date, lab_name, patient_name, doctor_name, extracted_data, raw_text, analysis, file_size, page_count, file_data, cloudinary_url, uploaded_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, NULL, NULL, ?)`,
         ['demo-ameena-report-sabari2', P_PATIENT_ID,
-         'Ameena Begam - Sabari Lab Full Panel 07-Jun-2026.pdf',
+         `${SHORT_NAME} - Sabari Lab Full Panel 07-Jun-2026.pdf`,
          SABARI_DATE_2, 'Sabari Lab (Try) — Pudukkottai',
-         'Mrs. Ameena Begam .S', 'Dr. R. Lavanya MD (Path) / Dr. P. K. Rath MD (Path)',
+         PATIENT_NAME, 'Dr. R. Lavanya MD (Path) / Dr. P. K. Rath MD (Path)',
          json(rpt2ExtractedData),
          'Visit 26111943. CBC: Hb 9.0, MCV 64.2, MCH 19.2, MCHC 29.9, RDW 17.4. Glucose(F) 236. ALP 156, GGT 90. Lipids normal. End of Report.',
          'Severe microcytic anaemia. Uncontrolled diabetes. Elevated ALP and GGT — hepatic/bone workup recommended.',
@@ -659,9 +661,9 @@ async function run() {
         `INSERT INTO lab_reports (id, patient_id, file_name, report_date, lab_name, patient_name, doctor_name, extracted_data, raw_text, analysis, file_size, page_count, file_data, cloudinary_url, uploaded_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 6, NULL, NULL, ?)`,
         ['demo-ameena-report-avm', P_PATIENT_ID,
-         'Ameena Begam - AVM Diagnostic Centre Full Panel 30-Jul-2026.pdf',
+         `${SHORT_NAME} - AVM Diagnostic Centre Full Panel 30-Jul-2026.pdf`,
          AVM_DATE, 'AVM Diagnostic Centre — Pudukkottai',
-         'Mrs. Ameena Begam .S', 'Dr. A. Manoharan M.D (Path)',
+         PATIENT_NAME, 'Dr. A. Manoharan M.D (Path)',
          json(rpt3ExtractedData),
          'Lab 040135. CBC: Hb 8.90, Microcytes 43.5%, MCV 66.3. Blood Group B Negative. HbA1c 7.3%. TSH 5.13. GGT 39.2, Albumin 3.4. HBsAg Negative. HIV 1&2 Non-reactive. VDRL Non-reactive. End of Report.',
          'Persistent anaemia (Hb 8.9, microcytes 43.5%). HbA1c improved to 7.3% (fair control). TSH elevated (5.13) — subclinical hypothyroidism. Low albumin (3.4). Infectious screen clear.',
@@ -712,7 +714,7 @@ async function run() {
     console.log(`✔ timeline      -> ${timeline.length} events`);
 
     // ── Summary ──
-    console.log('\n🎉 Mrs. Ameena Begam .S seeded successfully.');
+    console.log(`\n🎉 ${PATIENT_NAME} seeded successfully.`);
     console.log(`   Patient ID  : ${P_PATIENT_ID}`);
     console.log(`   Custom ID   : ${CUSTOM_ID}`);
     console.log(`   Email       : ${EMAIL}`);
