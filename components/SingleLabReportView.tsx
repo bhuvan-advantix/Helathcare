@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Fragment } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getReportPdf, analyzeTestResult } from '@/app/actions/labReports';
 import DashboardNavbar from '@/components/DashboardNavbar';
@@ -30,6 +31,7 @@ interface TestResult {
         name: string;
         value: string;
         unit: string;
+        sourceLabel?: string;
         referenceRange?: string;
         status?: 'normal' | 'high' | 'low';
     }[];
@@ -47,6 +49,7 @@ interface LabReport {
     fileSize: number;
     pageCount: number;
     uploadedAt: Date;
+    fileData?: string | null;
 }
 
 interface SingleLabReportViewProps {
@@ -65,6 +68,8 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
         try {
             if (report.cloudinaryUrl) {
                 window.open(report.cloudinaryUrl, '_blank');
+            } else if (report.fileData) {
+                window.open(report.fileData, '_blank');
             } else {
                 window.print();
             }
@@ -131,6 +136,12 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
     };
 
     const extractedMetadata = (report.extractedData as any)?.metadata || {};
+    const isImagingObservation = extractedMetadata.documentType === 'imaging-observation';
+    const observationResults = ((report.extractedData as any)?.results || []) as TestResult[];
+    const observedValue = (sourceLabel: string) => {
+        const observation = observationResults.flatMap(group => group.tests || []).find(item => item.sourceLabel === sourceLabel);
+        return observation ? `${observation.value}${observation.unit ? ` ${observation.unit}` : ''}` : 'Not legible';
+    };
 
     return (
         <div className="min-h-screen bg-[#F7F9FA] flex flex-col">
@@ -153,14 +164,23 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                     {report.fileName}
                                 </h1>
                                 <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-500 font-medium">
-                                    <span className="flex items-center gap-1 md:gap-1.5">
+                                    {isImagingObservation ? (
+                                        <>
+                                            <span className="flex items-center gap-1 md:gap-1.5">
+                                                <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                                                Record added: {formatDate(report.uploadedAt)}
+                                            </span>
+                                        </>
+                                    ) : <span className="flex items-center gap-1 md:gap-1.5">
                                         <Calendar className="w-3 h-3 md:w-4 md:h-4" />
                                         {formatDate(report.reportDate || report.uploadedAt)}
-                                    </span>
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
-                                    <span className="hidden sm:inline">Size: {formatFileSize(report.fileSize)}</span>
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
-                                    <span className="hidden sm:inline">{report.pageCount} Pages</span>
+                                    </span>}
+                                    {!isImagingObservation && <>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
+                                        <span className="hidden sm:inline">Size: {formatFileSize(report.fileSize)}</span>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
+                                        <span className="hidden sm:inline">{report.pageCount} Pages</span>
+                                    </>}
                                 </div>
                             </div>
                         </div>
@@ -179,19 +199,106 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                         <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <div className="flex items-center gap-2 mb-2 md:mb-3 text-teal-700">
                                 <Info className="w-4 h-4 md:w-5 md:h-5" />
-                                <h3 className="font-bold text-sm md:text-base">Analysis Details</h3>
+                                <h3 className="font-bold text-sm md:text-base">Record Details</h3>
                             </div>
                             <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
                                 <div>
                                     <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Report type</span>
-                                    <span className="font-semibold text-slate-700 text-xs md:text-sm">Medical Lab Report</span>
+                                    <span className="font-semibold text-slate-700 text-xs md:text-sm">{isImagingObservation ? 'Obstetric ultrasound observation record' : 'Medical Lab Report'}</span>
                                 </div>
+                                {isImagingObservation && (
+                                    <div>
+                                        <span className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Source</span>
+                                        <span className="font-semibold text-slate-700 text-xs md:text-sm">Photograph of ultrasound console</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
 
                     {/* Test Results Table */}
-                    <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm">
+                    {isImagingObservation && (
+                        <section className="bg-white border border-slate-200 rounded-2xl p-5 md:p-7 shadow-sm space-y-6">
+                            <div className="border-b border-slate-100 pb-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-[10px] font-black text-teal-700 uppercase tracking-[0.18em]">Imaging observation record</p>
+                                        <h2 className="text-xl md:text-2xl font-black text-slate-900 mt-1">Obstetric Ultrasound</h2>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-600 mt-3 leading-relaxed">
+                                    The following console values are transcribed from the supplied photograph. The displayed estimated due date is recorded as shown and has not been independently recalculated.
+                                </p>
+                            </div>
+
+                            {observationResults.map((group, groupIndex) => (
+                                <div key={`${group.category}-${groupIndex}`}>
+                                    <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">{group.category}</h3>
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
+                                                <tr>
+                                                    <th className="px-4 py-3 font-black">Console label</th>
+                                                    <th className="px-4 py-3 font-black">Displayed value</th>
+                                                    <th className="px-4 py-3 font-black">Interpretation</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {group.tests.map((item, itemIndex) => (
+                                                    <tr key={`${item.name}-${itemIndex}`} className="border-t border-slate-100">
+                                                        <td className="px-4 py-3 font-bold text-slate-800">{(item as any).sourceLabel || item.name}</td>
+                                                        <td className="px-4 py-3 font-black text-teal-700">{item.value}{item.unit ? ` ${item.unit}` : ''}</td>
+                                                        <td className="px-4 py-3 text-slate-600">{item.name}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Image-based impression</h3>
+                                    <p className="text-sm text-slate-700 leading-relaxed mt-2">
+                                        The console displays GS as {observedValue('GS')}, gestational age as {observedValue('GA')}, and EDD as {observedValue('EDD')}. These values are transcribed from the screen; this still image does not provide enough information to independently confirm the dating or assess findings that are not shown.
+                                    </p>
+                                </div>
+                                <div className="rounded-xl bg-amber-50/70 border border-amber-200 p-4">
+                                    <h3 className="text-xs font-black text-amber-900 uppercase tracking-wider">Dating note</h3>
+                                    <p className="text-sm text-amber-950 leading-relaxed mt-2">
+                                        The console displays EDD as {observedValue('EDD')}. This is a device-displayed estimate, not a reference interval. ACOG states that mean sac diameter is not recommended for estimating the due date, so the console value is transcribed without independent recalculation.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-4 text-xs text-slate-500 leading-relaxed">
+                                <p><span className="font-bold text-slate-700">Source and scope:</span> Single photographed ultrasound monitor frame. {extractedMetadata.imageRetained ? 'The source image is retained with this record.' : 'The source image file is not retained with this record.'} This record transcribes visible screen values and is not a facility-issued diagnostic report or a signed interpretation.</p>
+                                <a className="inline-block mt-2 font-semibold text-teal-700 underline underline-offset-2" href="https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2017/05/methods-for-estimating-the-due-date" target="_blank" rel="noreferrer">ACOG: Methods for Estimating the Due Date</a>
+                            </div>
+                        </section>
+                    )}
+
+                    {report.fileData?.startsWith('data:image/') && (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-5">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <h2 className="text-sm font-black text-slate-900">Source image</h2>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-1">
+                                    Retained
+                                </span>
+                            </div>
+                            <Image
+                                src={report.fileData}
+                                alt="Retained source imaging document"
+                                width={1200}
+                                height={800}
+                                unoptimized
+                                className="max-h-[520px] w-full rounded-xl border border-slate-200 object-contain bg-slate-950"
+                            />
+                        </div>
+                    )}
+
+                    {!isImagingObservation && <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm">
                         <h2 className="text-lg font-black text-slate-900 mb-4">Extracted Parameters</h2>
                         {(() => {
                             const rawData = report.extractedData;
@@ -253,7 +360,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                                         <th className="py-2 px-3">Test Name</th>
                                                         <th className="py-2 px-3">Result</th>
                                                         <th className="py-2 px-3">Unit</th>
-                                                        <th className="py-2 px-3">Reference / Comparator</th>
+                                                        <th className="py-2 px-3">Reference interval</th>
                                                         <th className="py-2 px-3">Status</th>
                                                     </tr>
                                                 </thead>
@@ -263,13 +370,15 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                                                             <td className="py-2.5 px-3 font-semibold text-slate-900">{test.name}</td>
                                                             <td className="py-2.5 px-3 font-bold text-teal-600">{test.value}</td>
                                                             <td className="py-2.5 px-3 text-slate-500">{test.unit}</td>
-                                                            <td className="py-2.5 px-3 text-slate-500">{test.referenceRange || 'Clinician reviewed'}</td>
+                                                            <td className="py-2.5 px-3 text-slate-500">{test.referenceRange || 'Not stated in source'}</td>
                                                             <td className="py-2.5 px-3">
-                                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase border ${test.status === 'high'
+                                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase border ${test.status === 'high'
                                                                     ? 'bg-rose-50 text-rose-700 border-rose-100'
                                                                     : test.status === 'low'
                                                                         ? 'bg-amber-50 text-amber-700 border-amber-100'
-                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                                        : test.status === 'review'
+                                                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                            : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                                                     }`}>
                                                                     {test.status || 'normal'}
                                                                 </span>
@@ -293,7 +402,7 @@ export default function SingleLabReportView({ user, report }: SingleLabReportVie
                             }
                         })()}
 
-                    </div>
+                    </div>}
                 </motion.div>
             </main>
             <Footer />

@@ -1607,6 +1607,7 @@ export default function DoctorPatientProfileView({
                     <div className="space-y-6 animate-in fade-in duration-300">
                         {(() => {
                             const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; dot: string; Icon: any }> = {
+                                source_transcribed: { label: 'Source image transcription', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', dot: 'bg-blue-500', Icon: FileText },
                                 improving: { label: 'Improving', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', Icon: TrendingDown },
                                 stable: { label: 'Stable', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500', Icon: Minus },
                                 worsening: { label: 'Worsening', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500', Icon: TrendingUp },
@@ -1649,7 +1650,7 @@ export default function DoctorPatientProfileView({
                                     name: p.name,
                                     value: p.value,
                                     unit: p.unit,
-                                    status: p.status ?? 'normal',
+                                    status: p.status ?? (activeDiagnostic?.conditionStatus === 'source_transcribed' ? 'review' : 'normal'),
                                     timestamp: n.date || '',
                                 })),
                             }));
@@ -1698,7 +1699,7 @@ export default function DoctorPatientProfileView({
                                                     <div className="flex items-center gap-2">
                                                         <currentStatus.Icon className={`w-4 h-4 ${currentStatus.color}`} />
                                                         <span className={`text-xs font-black ${currentStatus.color}`}>
-                                                            <span className="font-black underline">{activeDiagnostic.conditionName}</span> — Clinical Assessment: {currentStatus.label}
+                                                            <span className="font-black underline">{activeDiagnostic.conditionName}</span> — {activeDiagnostic.conditionStatus === 'source_transcribed' ? 'Record status' : 'Clinical Assessment'}: {currentStatus.label}
                                                         </span>
                                                     </div>
                                                     {activeDiagnostic.updatedAt && (
@@ -1718,7 +1719,7 @@ export default function DoctorPatientProfileView({
                                                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                                                         <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                                             <Pill className="w-4 h-4 text-teal-600" />
-                                                            Treatment Plan
+                                                            {activeDiagnostic.conditionStatus === 'source_transcribed' ? 'Record Note' : 'Treatment Plan'}
                                                         </h4>
                                                         <p className="text-xs text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
                                                             {activeDiagnostic.treatmentPlan}
@@ -1731,7 +1732,7 @@ export default function DoctorPatientProfileView({
                                                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                                                         <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                                             <FileText className="w-4 h-4 text-rose-500" />
-                                                            Diagnostic Clinical Notes
+                                                            {activeDiagnostic.conditionStatus === 'source_transcribed' ? 'Source Notes' : 'Diagnostic Clinical Notes'}
                                                         </h4>
                                                         <p className="text-xs text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
                                                             {activeDiagnostic.clinicalNotes}

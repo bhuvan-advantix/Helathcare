@@ -22,7 +22,7 @@ export interface DiagnosticNodeInput {
 
 export interface SaveDiagnosticInput {
     conditionName: string;
-    conditionStatus: 'improving' | 'stable' | 'worsening';
+    conditionStatus: 'source_transcribed' | 'improving' | 'stable' | 'worsening';
     nodes: DiagnosticNodeInput[];
     clinicalNotes: string;
     treatmentPlan: string;

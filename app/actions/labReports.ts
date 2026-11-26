@@ -588,10 +588,24 @@ export async function getLabReport(reportId: string) {
             return { success: false, error: 'Report ID is required' };
         }
 
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
         const [report] = await db.select().from(labReports).where(eq(labReports.id, reportId)).limit(1);
 
         if (!report) {
             return { success: false, error: 'Report not found' };
+        }
+
+        const [owner] = await db.select({ userId: patients.userId })
+            .from(patients)
+            .where(eq(patients.id, report.patientId))
+            .limit(1);
+
+        if (!owner || owner.userId !== session.user.id) {
+            return { success: false, error: 'You do not have access to this report' };
         }
 
         return { success: true, report };

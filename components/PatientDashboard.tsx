@@ -580,7 +580,10 @@ const ConditionCard = ({ name, diagnosed, status, related, href = "/diagnostic" 
     const s = (status || '').toLowerCase();
     let badgeLabel = s || 'stable';
     let badgeCls = 'bg-emerald-50 text-emerald-600 ring-emerald-200'; // default stable/mild
-    if (s === 'worsening' || s.includes('critical') || s.includes('severe')) {
+    if (s === 'source_transcribed') {
+        badgeLabel = 'image transcription';
+        badgeCls = 'bg-blue-50 text-blue-600 ring-blue-200';
+    } else if (s === 'worsening' || s.includes('critical') || s.includes('severe')) {
         badgeLabel = 'worsening';
         badgeCls = 'bg-red-50 text-red-500 ring-red-200';
     } else if (s === 'stable' || s === 'moderate') {
@@ -592,8 +595,8 @@ const ConditionCard = ({ name, diagnosed, status, related, href = "/diagnostic" 
     }
 
     // "Current Status" readable label
-    const currentStatusLabel = s === 'improving' ? 'improving' : s === 'worsening' ? 'worsening' : 'controlled';
-    const currentStatusCls = (s === 'worsening' || s.includes('critical')) ? 'text-red-500' : 'text-teal-600';
+    const currentStatusLabel = s === 'source_transcribed' ? 'values transcribed from source image' : s === 'improving' ? 'improving' : s === 'worsening' ? 'worsening' : 'controlled';
+    const currentStatusCls = s === 'source_transcribed' ? 'text-blue-600' : (s === 'worsening' || s.includes('critical')) ? 'text-red-500' : 'text-teal-600';
 
     return (
         <Link href={href} className="block group">
@@ -610,12 +613,12 @@ const ConditionCard = ({ name, diagnosed, status, related, href = "/diagnostic" 
 
                 {/* Diagnosed date */}
                 <p className="text-xs text-slate-500">
-                    Diagnosed: <span className="font-medium text-slate-700">{diagnosed || '—'}</span>
+                    {s === 'source_transcribed' ? 'Recorded' : 'Diagnosed'}: <span className="font-medium text-slate-700">{diagnosed || '—'}</span>
                 </p>
 
                 {/* Current Status */}
                 <p className="text-xs">
-                    <span className="text-slate-600 font-medium">Current Status: </span>
+                    <span className="text-slate-600 font-medium">{s === 'source_transcribed' ? 'Record Status: ' : 'Current Status: '}</span>
                     <span className={`font-bold ${currentStatusCls}`}>{currentStatusLabel}</span>
                 </p>
 
@@ -2168,7 +2171,7 @@ export default function PatientDashboard({ data }: DashboardProps) {
 
                         {/* Chronic Conditions */}
                         <motion.div variants={itemVariants} className="space-y-6">
-                            <h2 className="text-xl font-bold text-slate-900">Chronic Conditions</h2>
+                            <h2 className="text-xl font-bold text-slate-900">Conditions &amp; Diagnostic Records</h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {diagnosticConditions.length > 0 ? (
                                     diagnosticConditions.map((condition) => (

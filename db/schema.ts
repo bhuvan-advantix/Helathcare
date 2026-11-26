@@ -296,7 +296,7 @@ export const patientDiagnostics = sqliteTable('patient_diagnostics', {
     conditionName: text('condition_name').notNull(),
 
     // Doctor's assessment
-    conditionStatus: text('condition_status').default('stable'), // 'improving' | 'stable' | 'worsening'
+    conditionStatus: text('condition_status').default('stable'), // 'source_transcribed' | 'improving' | 'stable' | 'worsening'
 
     // JSON array of DiagnosticNode objects (the mind-map)
     nodes: text('nodes', { mode: 'json' }).$type<any[]>().notNull().default([]),

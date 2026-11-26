@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Activity, Info, HeartPulse, Pill, TrendingDown, TrendingUp,
-    Brain, AlertCircle, BarChart2, FileText, User, CalendarDays, Minus
+    Brain, AlertCircle, BarChart2, FileText, User, CalendarDays, Minus, ClipboardCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardNavbar from '@/components/DashboardNavbar';
@@ -54,6 +54,7 @@ interface DiagnosticPageProps {
 // ─── Status config ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
+    source_transcribed: { label: 'Source image transcription', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', dot: 'bg-blue-500', Icon: ClipboardCheck },
     improving: { label: 'Improving', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', Icon: TrendingDown },
     stable: { label: 'Stable', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500', Icon: Minus },
     worsening: { label: 'Worsening', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500', Icon: TrendingUp },
@@ -72,7 +73,7 @@ function formatMeasurement(value: string | null, unit: string) {
     return value.toLowerCase().includes(unit.toLowerCase()) ? value : `${value} ${unit}`;
 }
 
-function mapNodesToMapNodes(nodes: any[]): DiagnosticNode[] {
+function mapNodesToMapNodes(nodes: any[], conditionStatus?: string): DiagnosticNode[] {
     return nodes.map((n, i) => ({
         id: n.id || `n${i}`,
         title: n.title || 'Node',
@@ -87,7 +88,7 @@ function mapNodesToMapNodes(nodes: any[]): DiagnosticNode[] {
             name: p.name,
             value: p.value,
             unit: p.unit,
-            status: p.status ?? 'normal',
+            status: p.status ?? (conditionStatus === 'source_transcribed' ? 'review' : 'normal'),
             timestamp: n.date || '',
         })),
     }));
@@ -148,13 +149,14 @@ export default function DiagnosticPage({ user, patient, diagnostics, medications
 
     useEffect(() => {
         if (selected) {
-            setMapNodes(mapNodesToMapNodes(selected.nodes));
+            setMapNodes(mapNodesToMapNodes(selected.nodes, selected.conditionStatus));
         }
     }, [selected]);
 
     const statusCfg = selected
         ? (STATUS_CONFIG[selected.conditionStatus as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.stable)
         : STATUS_CONFIG.stable;
+    const sourceReportId = selected?.nodes.find((node: any) => node?.reportId)?.reportId as string | undefined;
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -213,12 +215,21 @@ export default function DiagnosticPage({ user, patient, diagnostics, medications
                             {selected && (
                                 <div className={`mb-4 p-3.5 ${statusCfg.bg} rounded-xl border ${statusCfg.border} flex items-center gap-2.5`}>
                                     <statusCfg.Icon className={`w-4 h-4 ${statusCfg.color} flex-shrink-0`} />
-                                    <p className={`text-xs font-bold ${statusCfg.color}`}>
+                                    <p className={`text-xs font-bold ${statusCfg.color} flex-1`}>
                                         <span className="font-black">{selected.conditionName}</span>
-                                        {' '}— Patient is currently{' '}
+                                        {' '}— Record status:{' '}
                                         <span className="underline underline-offset-2">{statusCfg.label.toLowerCase()}</span>{' '}
-                                        as per the latest clinical assessment.
+                                        .
                                     </p>
+                                    {sourceReportId && (
+                                        <Link
+                                            href={`/labreports/${sourceReportId}`}
+                                            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/80 border border-current/20 text-[10px] font-black hover:bg-white transition-colors"
+                                        >
+                                            <FileText className="w-3 h-3" />
+                                            Source report
+                                        </Link>
+                                    )}
                                 </div>
                             )}
 
@@ -313,7 +324,7 @@ export default function DiagnosticPage({ user, patient, diagnostics, medications
                                                     <div className="w-7 h-7 rounded-xl bg-teal-50 flex items-center justify-center">
                                                         <Pill className="w-3.5 h-3.5 text-teal-600" />
                                                     </div>
-                                                    <h3 className="font-black text-sm text-slate-900">Treatment Plan</h3>
+                                                    <h3 className="font-black text-sm text-slate-900">{selected.conditionStatus === 'source_transcribed' ? 'Record Note' : 'Treatment Plan'}</h3>
                                                 </div>
                                                 <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-50 border border-slate-100 rounded-full px-2 py-0.5">
                                                     Protocol
@@ -375,7 +386,7 @@ export default function DiagnosticPage({ user, patient, diagnostics, medications
                                                     <div className="w-7 h-7 rounded-xl bg-rose-50 flex items-center justify-center">
                                                         <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
                                                     </div>
-                                                    <h3 className="font-black text-sm text-slate-900">Diagnostic Clinical Notes</h3>
+                                                    <h3 className="font-black text-sm text-slate-900">{selected.conditionStatus === 'source_transcribed' ? 'Source Notes' : 'Diagnostic Clinical Notes'}</h3>
                                                 </div>
                                             </div>
                                             <p className="text-xs text-slate-600 leading-relaxed font-semibold whitespace-pre-wrap bg-slate-50/50 p-3 rounded-2xl border border-slate-100">

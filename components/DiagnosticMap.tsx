@@ -19,7 +19,7 @@ export interface DiagnosticNodeParameter {
     name: string;
     value: string | number;
     unit?: string;
-    status?: 'normal' | 'high' | 'low' | 'critical';
+    status?: 'normal' | 'high' | 'low' | 'critical' | 'review';
     timestamp?: string;
 }
 
@@ -83,6 +83,7 @@ function chipStyle(s?: string): { bg: string; text: string; bdr: string } {
     if (s === 'critical') return { bg: '#fef2f2', text: '#b91c1c', bdr: '#fecaca' };
     if (s === 'high')     return { bg: '#fff7ed', text: '#c2410c', bdr: '#fed7aa' };
     if (s === 'low')      return { bg: '#fffbeb', text: '#92400e', bdr: '#fde68a' };
+    if (s === 'review')   return { bg: '#eff6ff', text: '#1d4ed8', bdr: '#bfdbfe' };
     return                       { bg: '#f0fdf4', text: '#166534', bdr: '#bbf7d0' };
 }
 
